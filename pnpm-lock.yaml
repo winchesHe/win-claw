@@ -57,7 +57,21 @@ importers:
         specifier: ^6.32.0
         version: 6.32.0
 
-  packages/core: {}
+  packages/core:
+    dependencies:
+      '@winches/ai':
+        specifier: workspace:*
+        version: link:../ai
+      pino:
+        specifier: ^9.0.0
+        version: 9.14.0
+    devDependencies:
+      '@types/node':
+        specifier: ^25.5.0
+        version: 25.5.0
+      fast-check:
+        specifier: ^3.0.0
+        version: 3.23.2
 
   packages/gateway: {}
 
