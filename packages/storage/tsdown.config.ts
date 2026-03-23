@@ -6,5 +6,6 @@ export default defineConfig({
   outDir: "dist",
   dts: true,
   clean: true,
+  hash: false,
   exports: true,
 });
