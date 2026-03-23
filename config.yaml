@@ -1,0 +1,28 @@
+# LLM Provider 配置
+llm:
+  provider: openai # openai | anthropic | google | openai-compatible
+  model: gpt-4o
+  apiKey: ${AGENT_API_KEY} # 支持环境变量引用
+  baseUrl: null # openai-compatible 时使用
+
+# Embedding 配置
+embedding:
+  provider: openai
+  model: text-embedding-3-small
+
+# Telegram Bot 配置
+telegram:
+  botToken: ${AGENT_TELEGRAM_TOKEN}
+
+# 审批超时配置
+approval:
+  timeout: 300 # 审批超时秒数，默认 5 分钟
+  defaultAction: reject # 超时后默认动作：reject | approve
+
+# 存储路径配置
+storage:
+  dbPath: ./data/agent.db # SQLite 数据库路径
+
+# 日志级别配置
+logging:
+  level: info # debug | info | warn | error

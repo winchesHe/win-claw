@@ -7,7 +7,7 @@
 - 项目名：winches-agent
 - 包 scope：`@winches/*`
 - 语言：TypeScript（strict mode，ESM）
-- 架构：npm workspaces monorepo，参考 [pi-mono](https://github.com/badlogic/pi-mono)
+- 架构：pnpm workspaces monorepo，参考 [pi-mono](https://github.com/badlogic/pi-mono)
 - 构建工具：tsdown（基于 Rolldown）
 - 测试框架：Vitest
 - 代码规范：ESLint + Prettier
@@ -51,20 +51,20 @@ web-ui（依赖 storage，直接读数据库）
 
 ```typescript
 interface Message {
-  role: "system" | "user" | "assistant" | "tool"
-  content: string | ContentPart[]
+  role: "system" | "user" | "assistant" | "tool";
+  content: string | ContentPart[];
 }
 
 interface LLMProvider {
-  chat(messages: Message[], options?: ChatOptions): Promise<ChatResponse>
-  chatStream(messages: Message[], options?: ChatOptions): AsyncIterable<ChatChunk>
+  chat(messages: Message[], options?: ChatOptions): Promise<ChatResponse>;
+  chatStream(messages: Message[], options?: ChatOptions): AsyncIterable<ChatChunk>;
 }
 
 interface ChatOptions {
-  tools?: ToolDefinition[]
-  temperature?: number
-  maxTokens?: number
-  model?: string
+  tools?: ToolDefinition[];
+  temperature?: number;
+  maxTokens?: number;
+  model?: string;
 }
 ```
 
@@ -82,7 +82,6 @@ interface ChatOptions {
 - Provider 通过配置文件选择，运行时可切换
 - 不含 embedding 接口（放在 storage 包，与向量存储紧耦合）
 
-
 ## 2. Core 包 — 工具注册表与内置工具
 
 `@winches/core` 提供工具注册表和所有内置工具。
@@ -91,71 +90,78 @@ interface ChatOptions {
 
 ```typescript
 interface Tool {
-  name: string
-  description: string
-  parameters: JSONSchema
-  dangerLevel: "safe" | "confirm" | "dangerous"
-  execute(params: unknown): Promise<ToolResult>
+  name: string;
+  description: string;
+  parameters: JSONSchema;
+  dangerLevel: "safe" | "confirm" | "dangerous";
+  execute(params: unknown): Promise<ToolResult>;
 }
 
 interface ToolRegistry {
-  register(tool: Tool): void
-  get(name: string): Tool | undefined
-  list(): Tool[]
-  listByDangerLevel(level: string): Tool[]
+  register(tool: Tool): void;
+  get(name: string): Tool | undefined;
+  list(): Tool[];
+  listByDangerLevel(level: string): Tool[];
 }
 ```
 
 ### 内置工具清单
 
 #### 文件操作
-| 工具 | 说明 | 权限 |
-|------|------|------|
-| `file.read` | 读取文件内容 | safe |
-| `file.write` | 写入文件 | confirm |
-| `file.delete` | 删除文件 | dangerous |
-| `file.list` | 列出目录 | safe |
-| `file.move` | 移动/重命名 | confirm |
+
+| 工具          | 说明         | 权限      |
+| ------------- | ------------ | --------- |
+| `file.read`   | 读取文件内容 | safe      |
+| `file.write`  | 写入文件     | confirm   |
+| `file.delete` | 删除文件     | dangerous |
+| `file.list`   | 列出目录     | safe      |
+| `file.move`   | 移动/重命名  | confirm   |
 
 #### 浏览器控制（基于 Playwright）
-| 工具 | 说明 | 权限 |
-|------|------|------|
-| `browser.open` | 打开 URL | safe |
-| `browser.screenshot` | 截图当前页面 | safe |
-| `browser.click` | 点击元素 | confirm |
-| `browser.type` | 输入文本 | confirm |
-| `browser.evaluate` | 执行 JS 获取页面信息 | confirm |
-| `browser.navigate` | AI 驱动自主浏览 | confirm |
+
+| 工具                 | 说明                 | 权限    |
+| -------------------- | -------------------- | ------- |
+| `browser.open`       | 打开 URL             | safe    |
+| `browser.screenshot` | 截图当前页面         | safe    |
+| `browser.click`      | 点击元素             | confirm |
+| `browser.type`       | 输入文本             | confirm |
+| `browser.evaluate`   | 执行 JS 获取页面信息 | confirm |
+| `browser.navigate`   | AI 驱动自主浏览      | confirm |
 
 #### Shell 执行
-| 工具 | 说明 | 权限 |
-|------|------|------|
+
+| 工具         | 说明            | 权限      |
+| ------------ | --------------- | --------- |
 | `shell.exec` | 执行 shell 命令 | dangerous |
 
 #### 网络请求
-| 工具 | 说明 | 权限 |
-|------|------|------|
-| `http.get` | HTTP GET 请求 | safe |
+
+| 工具        | 说明           | 权限    |
+| ----------- | -------------- | ------- |
+| `http.get`  | HTTP GET 请求  | safe    |
 | `http.post` | HTTP POST 请求 | confirm |
 
 #### 系统信息
-| 工具 | 说明 | 权限 |
-|------|------|------|
-| `system.info` | 获取 CPU/内存/磁盘状态 | safe |
-| `system.processes` | 查看运行中进程 | safe |
+
+| 工具               | 说明                   | 权限 |
+| ------------------ | ---------------------- | ---- |
+| `system.info`      | 获取 CPU/内存/磁盘状态 | safe |
+| `system.processes` | 查看运行中进程         | safe |
 
 #### 剪贴板
-| 工具 | 说明 | 权限 |
-|------|------|------|
-| `clipboard.read` | 读取系统剪贴板 | safe |
+
+| 工具              | 说明           | 权限    |
+| ----------------- | -------------- | ------- |
+| `clipboard.read`  | 读取系统剪贴板 | safe    |
 | `clipboard.write` | 写入系统剪贴板 | confirm |
 
 #### 定时任务
-| 工具 | 说明 | 权限 |
-|------|------|------|
-| `scheduler.set` | 设置定时提醒/执行 | confirm |
-| `scheduler.list` | 列出定时任务 | safe |
-| `scheduler.cancel` | 取消定时任务 | safe |
+
+| 工具               | 说明              | 权限    |
+| ------------------ | ----------------- | ------- |
+| `scheduler.set`    | 设置定时提醒/执行 | confirm |
+| `scheduler.list`   | 列出定时任务      | safe    |
+| `scheduler.cancel` | 取消定时任务      | safe    |
 
 ### 权限分级
 
@@ -178,21 +184,21 @@ interface ToolRegistry {
 ```typescript
 interface StorageService {
   // 对话历史
-  saveMessage(sessionId: string, message: Message): Promise<void>
-  getHistory(sessionId: string, limit?: number): Promise<Message[]>
-  searchHistory(query: string, topK?: number): Promise<Message[]>
+  saveMessage(sessionId: string, message: Message): Promise<void>;
+  getHistory(sessionId: string, limit?: number): Promise<Message[]>;
+  searchHistory(query: string, topK?: number): Promise<Message[]>;
 
   // 长期记忆（语义搜索）
-  remember(content: string, tags?: string[]): Promise<void>
-  recall(query: string, topK?: number): Promise<Memory[]>
+  remember(content: string, tags?: string[]): Promise<void>;
+  recall(query: string, topK?: number): Promise<Memory[]>;
 
   // 定时任务持久化
-  saveScheduledTask(task: ScheduledTask): Promise<void>
-  getPendingTasks(): Promise<ScheduledTask[]>
+  saveScheduledTask(task: ScheduledTask): Promise<void>;
+  getPendingTasks(): Promise<ScheduledTask[]>;
 
   // 审批队列
-  queueApproval(request: ApprovalRequest): Promise<string>
-  getApproval(id: string): Promise<ApprovalStatus>
+  queueApproval(request: ApprovalRequest): Promise<string>;
+  getApproval(id: string): Promise<ApprovalStatus>;
 }
 ```
 
@@ -209,7 +215,6 @@ interface StorageService {
 - 默认通过 `@winches/ai` 调用云端 embedding API
 - 可配置切换到本地模型
 
-
 ## 4. Agent 包 — 运行时核心（嵌入式库）
 
 `@winches/agent` 是系统的大脑，作为嵌入式库被 TUI 和 Gateway 直接 import 使用。
@@ -217,6 +222,7 @@ interface StorageService {
 ### 架构模式
 
 嵌入式库模式（参考 pi-mono 的 agent-core）：
+
 - 不是独立服务进程，没有 HTTP server
 - TUI 和 Gateway 各自创建自己的 Agent 实例
 - 各实例有独立的对话历史，不共享状态
@@ -226,16 +232,16 @@ interface StorageService {
 
 ```typescript
 class Agent {
-  constructor(config: AgentConfig)
+  constructor(config: AgentConfig);
 
   // 核心对话，流式返回事件
-  chat(messages: Message[]): AsyncIterable<AgentEvent>
+  chat(messages: Message[]): AsyncIterable<AgentEvent>;
 
   // 审批回调（由宿主程序实现）
-  onApprovalNeeded: (request: ApprovalRequest) => Promise<boolean>
+  onApprovalNeeded: (request: ApprovalRequest) => Promise<boolean>;
 
   // 状态查询
-  getStatus(): AgentStatus
+  getStatus(): AgentStatus;
 }
 
 type AgentEvent =
@@ -243,7 +249,7 @@ type AgentEvent =
   | { type: "tool_call"; tool: string; params: unknown }
   | { type: "tool_result"; result: ToolResult }
   | { type: "approval_needed"; request: ApprovalRequest }
-  | { type: "done" }
+  | { type: "done" };
 ```
 
 ### 对话循环
@@ -306,6 +312,7 @@ Telegram 消息 → grammy 接收 → 转成 Message 格式 → agent.chat()
 ### 审批实现
 
 Gateway 实现 `onApprovalNeeded` 回调：
+
 - 发送 Telegram 消息，附带操作描述和 inline keyboard 按钮
 - 用户点 Approve → 返回 true，点 Reject → 返回 false
 - 支持超时自动拒绝（可配置，默认 5 分钟）
@@ -334,7 +341,6 @@ Gateway 实现 `onApprovalNeeded` 回调：
 - 配置管理：查看和修改 Agent 配置
 - 系统状态：存储用量、最近活动概览
 
-
 ## 8. 配置管理
 
 ### 配置文件
@@ -343,10 +349,10 @@ Gateway 实现 `onApprovalNeeded` 回调：
 
 ```yaml
 llm:
-  provider: openai          # openai | anthropic | google | openai-compatible
+  provider: openai # openai | anthropic | google | openai-compatible
   model: gpt-4o
-  apiKey: ${AGENT_API_KEY}  # 支持环境变量引用
-  baseUrl: null             # openai-compatible 时使用
+  apiKey: ${AGENT_API_KEY} # 支持环境变量引用
+  baseUrl: null # openai-compatible 时使用
 
 embedding:
   provider: openai
@@ -356,19 +362,20 @@ telegram:
   botToken: ${AGENT_TELEGRAM_TOKEN}
 
 approval:
-  timeout: 300              # 审批超时秒数，默认 5 分钟
-  defaultAction: reject     # 超时后默认拒绝
+  timeout: 300 # 审批超时秒数，默认 5 分钟
+  defaultAction: reject # 超时后默认拒绝
 
 storage:
   dbPath: ./data/agent.db
 
 logging:
-  level: info               # debug | info | warn | error
+  level: info # debug | info | warn | error
 ```
 
 ### 环境变量覆盖
 
 所有配置项支持 `AGENT_*` 前缀的环境变量覆盖：
+
 - `AGENT_LLM_PROVIDER`
 - `AGENT_LLM_MODEL`
 - `AGENT_API_KEY`
@@ -376,13 +383,13 @@ logging:
 
 ## 9. 错误处理
 
-| 场景 | 策略 |
-|------|------|
-| LLM 调用失败 | 自动重试 3 次，指数退避，最终通知用户 |
-| 工具执行失败 | 捕获错误，将错误信息作为 tool result 返回 LLM |
-| Telegram 连接断开 | grammy 内置自动重连 |
-| 浏览器崩溃 | Playwright 进程隔离，崩溃后自动重启新实例 |
-| 审批超时 | 默认拒绝，通知 LLM 操作被拒绝 |
+| 场景              | 策略                                          |
+| ----------------- | --------------------------------------------- |
+| LLM 调用失败      | 自动重试 3 次，指数退避，最终通知用户         |
+| 工具执行失败      | 捕获错误，将错误信息作为 tool result 返回 LLM |
+| Telegram 连接断开 | grammy 内置自动重连                           |
+| 浏览器崩溃        | Playwright 进程隔离，崩溃后自动重启新实例     |
+| 审批超时          | 默认拒绝，通知 LLM 操作被拒绝                 |
 
 ## 10. 部署
 
@@ -397,6 +404,7 @@ npm run start:web-ui    # 管理面板
 ### Docker
 
 提供 Dockerfile 和 docker-compose.yaml：
+
 - gateway 容器：Telegram Bot 常驻运行
 - web-ui 容器：管理面板
 - 共享 volume 挂载 SQLite 数据文件和配置
@@ -406,19 +414,23 @@ npm run start:web-ui    # 管理面板
 由于整体项目较大，建议按以下顺序拆分为独立子项目，每个子项目走独立的 spec → plan → implementation 周期：
 
 ### Phase 1：基础层
+
 1. **Monorepo 脚手架** — 项目初始化、npm workspaces、tsdown 构建、共享配置
 2. **@winches/ai** — 统一 LLM 抽象层，先实现 OpenAI provider
 3. **@winches/storage** — SQLite + sqlite-vec，对话存储和长期记忆
 
 ### Phase 2：核心能力
+
 4. **@winches/core** — 工具注册表 + 文件操作工具（最基础的工具集）
 5. **@winches/agent** — Agent 运行时，对话循环 + 工具调度 + 权限审批
 
 ### Phase 3：用户界面
+
 6. **@winches/tui** — 终端聊天界面
 7. **@winches/gateway** — Telegram Bot 接入
 
 ### Phase 4：扩展
+
 8. **@winches/core 扩展** — 浏览器控制、网络请求、系统信息、剪贴板、定时任务工具
 9. **@winches/web-ui** — 管理/调试面板
 
