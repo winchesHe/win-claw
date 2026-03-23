@@ -15,5 +15,15 @@
   "scripts": {
     "build": "tsdown",
     "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@winches/ai": "workspace:*",
+    "@winches/core": "workspace:*",
+    "@winches/storage": "workspace:*",
+    "pino": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "fast-check": "^3.23.2"
   }
 }
