@@ -93,6 +93,9 @@ export class ConfigLoader {
     if (process.env.AGENT_API_KEY) {
       result.apiKey = process.env.AGENT_API_KEY;
     }
+    if (process.env.AGENT_LLM_BASE_URL) {
+      result.baseUrl = process.env.AGENT_LLM_BASE_URL;
+    }
 
     ConfigLoader.validate(result);
     return result;

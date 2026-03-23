@@ -1,7 +1,7 @@
 # LLM Provider 配置
 llm:
   provider: openai # openai | anthropic | google | openai-compatible
-  model: gpt-4o
+  model: gpt-5.4
   apiKey: ${AGENT_API_KEY} # 支持环境变量引用
   baseUrl: null # openai-compatible 时使用
 
