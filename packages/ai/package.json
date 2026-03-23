@@ -15,5 +15,30 @@
   "scripts": {
     "build": "tsdown",
     "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "yaml": "^2.7.1"
+  },
+  "peerDependencies": {
+    "openai": "^6.0.0",
+    "@anthropic-ai/sdk": "^0.80.0",
+    "@google/generative-ai": "^0.24.0"
+  },
+  "peerDependenciesMeta": {
+    "openai": {
+      "optional": true
+    },
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
+    "@google/generative-ai": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
+    "@google/generative-ai": "^0.24.1",
+    "@types/node": "^25.5.0",
+    "openai": "^6.32.0"
   }
 }
