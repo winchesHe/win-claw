@@ -5,9 +5,10 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./dist/index-D_KUrGqh.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist/"
@@ -40,5 +41,8 @@
     "@google/generative-ai": "^0.24.1",
     "@types/node": "^25.5.0",
     "openai": "^6.32.0"
-  }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index-D_KUrGqh.d.ts"
 }
