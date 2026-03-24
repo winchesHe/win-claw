@@ -110,7 +110,7 @@ export async function* conversationLoop(ctx: LoopContext): AsyncGenerator<AgentE
     }
 
     // 保存 assistant 消息（含工具调用上下文）
-    await storage.saveMessage(sessionId, { role: "assistant", content: content || "" });
+    await storage.saveMessage(sessionId, { role: "assistant", content: content || "", toolCalls });
 
     // 将 assistant 消息（含 toolCalls）追加到 loopMessages
     loopMessages = [

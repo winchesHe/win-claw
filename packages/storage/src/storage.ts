@@ -54,6 +54,8 @@ interface MessageRow {
   session_id: string;
   role: string;
   content: string;
+  tool_call_id: string | null;
+  tool_calls: string | null;
   created_at: number;
 }
 
@@ -73,10 +75,18 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 function deserializeMessage(row: MessageRow): Message {
-  return {
+  const msg: Message = {
     role: row.role as Message["role"],
     content: JSON.parse(row.content) as Message["content"],
   };
+  // Restore toolCallId and toolCalls if present in the serialized metadata
+  if (row.tool_call_id) {
+    msg.toolCallId = row.tool_call_id;
+  }
+  if (row.tool_calls) {
+    msg.toolCalls = JSON.parse(row.tool_calls) as Message["toolCalls"];
+  }
+  return msg;
 }
 
 export class SqliteStorageService implements StorageService {
@@ -95,13 +105,15 @@ export class SqliteStorageService implements StorageService {
   async saveMessage(sessionId: string, message: Message): Promise<void> {
     const id = crypto.randomUUID();
     const content = JSON.stringify(message.content);
+    const toolCallId = message.toolCallId ?? null;
+    const toolCalls = message.toolCalls ? JSON.stringify(message.toolCalls) : null;
     const createdAt = Date.now();
 
     this.db
       .prepare(
-        "INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO messages (id, session_id, role, content, tool_call_id, tool_calls, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
       )
-      .run(id, sessionId, message.role, content, createdAt);
+      .run(id, sessionId, message.role, content, toolCallId, toolCalls, createdAt);
 
     const textForEmbedding =
       typeof message.content === "string"
