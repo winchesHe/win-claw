@@ -38,7 +38,10 @@ export class GatewayBot {
     this.bot.on("message:text", async (ctx) => {
       if (ctx.message.text.startsWith("/")) return; // commands handled above
       const session = this.sessionManager.getOrCreate(ctx.chat.id);
-      await handleMessage(ctx, session, this.pendingApprovals, this.config, createApprovalHandler);
+      // Do NOT await — let grammy continue processing other updates (e.g. callback_query for approvals)
+      handleMessage(ctx, session, this.pendingApprovals, this.config, createApprovalHandler).catch(
+        (err) => this.logger.error({ err }, "handleMessage unhandled error"),
+      );
     });
 
     // Register non-text message handler

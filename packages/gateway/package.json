@@ -16,6 +16,7 @@
     "start": "node dist/index.js",
     "test": "vitest --run",
     "build": "tsdown",
+    "dev": "tsdown --watch",
     "clean": "rm -rf dist"
   },
   "dependencies": {

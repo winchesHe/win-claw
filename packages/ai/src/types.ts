@@ -18,6 +18,8 @@ export interface Message {
   content: string | ContentPart[];
   /** tool 角色消息需要关联的 tool_call_id */
   toolCallId?: string;
+  /** assistant 角色消息携带的工具调用列表 */
+  toolCalls?: ToolCall[];
 }
 
 // ===== 工具类型 =====
@@ -56,7 +58,7 @@ export interface ChatResponse {
 /** 流式聊天增量块 */
 export interface ChatChunk {
   content?: string;
-  toolCalls?: Partial<ToolCall>[];
+  toolCalls?: (Partial<ToolCall> & { index?: number })[];
   /** 最后一个 chunk 标记完成 */
   done?: boolean;
 }

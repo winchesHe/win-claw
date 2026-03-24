@@ -5,7 +5,7 @@ export type { Tool, ToolResult, DangerLevel, JSONSchema, FileEntry } from "./typ
 export { ToolRegistry, createDefaultRegistry } from "./registry.js";
 
 // Adapters
-export { toToolDefinition, registryToToolDefinitions } from "./adapters.js";
+export { toToolDefinition, registryToToolDefinitions, sanitizeToolName, restoreToolName } from "./adapters.js";
 
 // Errors
 export { CoreError, DuplicateToolError, ToolParamError } from "./errors.js";

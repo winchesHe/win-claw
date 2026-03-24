@@ -1,8 +1,11 @@
 import type { Context } from "grammy";
+import pino from "pino";
 import type { GatewayConfig, ChatSession, PendingApproval } from "../types.js";
 import type { ApprovalRequest } from "@winches/agent";
 import type { ToolResult } from "@winches/core";
 import { ThrottledBuffer } from "../throttle.js";
+
+const logger = pino({ name: "@winches/gateway/message" });
 
 type ApprovalHandlerFactory = (
   ctx: Context,
@@ -92,29 +95,36 @@ export async function handleMessage(
 
   try {
     // 6. Process agent event stream
+    logger.info("[message] starting agent event stream");
     for await (const event of session.agent.chat([{ role: "user", content: text }])) {
+      logger.info({ eventType: event.type }, "[message] received agent event");
       switch (event.type) {
         case "text":
           buffer.append(event.content);
           break;
         case "tool_call":
+          logger.info({ tool: event.tool, params: event.params }, "[message] tool_call event");
           lastToolName = event.tool;
           lastToolText = formatToolCallMessage(event.tool, event.params, "safe");
           await sendToolCallMessage(ctx, session, event.tool, event.params, "safe");
           break;
         case "tool_result":
+          logger.info({ success: event.result.success }, "[message] tool_result event");
           if (lastToolName != null && lastToolText != null) {
             await updateToolCallMessage(ctx, session, lastToolName, event.result, lastToolText);
           }
           break;
         case "done":
+          logger.info("[message] done event, flushing buffer");
           await buffer.flush();
           break;
       }
     }
+    logger.info("[message] agent event stream ended");
   } catch (err) {
     buffer.stop();
     const errMsg = err instanceof Error ? err.message : String(err);
+    logger.error({ err: errMsg }, "[message] error in agent event stream");
     await ctx.reply(`❌ 发生错误：${errMsg}`).catch(() => {});
   } finally {
     session.agent.onApprovalNeeded = undefined;

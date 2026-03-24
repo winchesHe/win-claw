@@ -17,8 +17,9 @@
   ],
   "scripts": {
     "build": "tsdown",
+    "dev": "tsdown --watch",
     "clean": "rm -rf dist",
-    "start": "node --env-file=../../.env dist/index.js"
+    "start": "tsx src/index.ts"
   },
   "dependencies": {
     "@winches/agent": "workspace:*",

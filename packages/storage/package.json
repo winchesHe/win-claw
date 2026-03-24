@@ -12,6 +12,7 @@
   ],
   "scripts": {
     "build": "tsdown && node -e \"const{cpSync,mkdirSync}=require('fs');mkdirSync('dist/migrations',{recursive:true});cpSync('src/migrations','dist/migrations',{recursive:true})\"",
+    "dev": "tsdown --watch",
     "clean": "rm -rf dist",
     "test": "vitest --run"
   },

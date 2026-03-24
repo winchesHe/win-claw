@@ -31,10 +31,11 @@ export async function* aggregateStream(
     if (chunk.toolCalls) {
       for (let i = 0; i < chunk.toolCalls.length; i++) {
         const partial = chunk.toolCalls[i];
-        if (!toolCallAccumulators.has(i)) {
-          toolCallAccumulators.set(i, { arguments: "" });
+        const key = partial.index ?? i;
+        if (!toolCallAccumulators.has(key)) {
+          toolCallAccumulators.set(key, { arguments: "" });
         }
-        const acc = toolCallAccumulators.get(i)!;
+        const acc = toolCallAccumulators.get(key)!;
         if (partial.id) acc.id = partial.id;
         if (partial.name) acc.name = partial.name;
         if (partial.arguments) acc.arguments += partial.arguments;

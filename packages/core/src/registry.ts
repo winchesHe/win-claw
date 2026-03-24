@@ -2,12 +2,7 @@ import pino from "pino";
 import type { Tool, DangerLevel } from "./types.js";
 import { DuplicateToolError } from "./errors.js";
 import { fileTools } from "./tools/file.js";
-import { browserTools } from "./tools/browser.js";
 import { shellTools } from "./tools/shell.js";
-import { httpTools } from "./tools/http.js";
-import { systemTools } from "./tools/system.js";
-import { clipboardTools } from "./tools/clipboard.js";
-import { schedulerTools } from "./tools/scheduler.js";
 
 const logger = pino({ name: "@winches/core" });
 
@@ -38,12 +33,7 @@ export function createDefaultRegistry(): ToolRegistry {
   const registry = new ToolRegistry();
   const allTools = [
     ...fileTools,
-    ...browserTools,
     ...shellTools,
-    ...httpTools,
-    ...systemTools,
-    ...clipboardTools,
-    ...schedulerTools,
   ];
   for (const tool of allTools) {
     registry.register(tool);

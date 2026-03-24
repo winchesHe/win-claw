@@ -1,5 +1,6 @@
 import type { ToolCall } from "@winches/ai";
 import type { ToolRegistry, ToolResult } from "@winches/core";
+import { restoreToolName } from "@winches/core";
 import type { StorageService } from "@winches/storage";
 import type { ApprovalRequest, AgentStatus } from "./types.js";
 import type pino from "pino";
@@ -35,8 +36,8 @@ export async function executeToolCall(
 ): Promise<DispatchResult> {
   const { registry, storage, sessionId, setStatus, onApprovalNeeded, logger } = ctx;
 
-  // 1. 查找工具
-  const tool = registry.get(toolCall.name);
+  // 1. 查找工具（LLM 返回的名称可能是 sanitized 格式，如 file-list，需还原为 file.list）
+  const tool = registry.get(toolCall.name) ?? registry.get(restoreToolName(toolCall.name));
   if (!tool) {
     logger.warn({ toolName: toolCall.name }, "tool not found in registry");
     return {
@@ -56,6 +57,18 @@ export async function executeToolCall(
     };
   }
 
+  // 2.5 校验 required 参数
+  const requiredFields = (tool.parameters.required as string[] | undefined) ?? [];
+  for (const field of requiredFields) {
+    const p = params as Record<string, unknown>;
+    if (p[field] === undefined || p[field] === null) {
+      return {
+        toolResult: { success: false, error: `Missing required parameter "${field}" for tool "${toolCall.name}"` },
+        rejected: false,
+      };
+    }
+  }
+
   logger.debug({ toolName: toolCall.name, dangerLevel: tool.dangerLevel }, "executing tool");
 
   // 3. 权限审批
@@ -66,11 +79,16 @@ export async function executeToolCall(
       dangerLevel: tool.dangerLevel,
     };
 
+    logger.info({ toolName: toolCall.name, dangerLevel: tool.dangerLevel }, "[dispatch] tool requires approval, requesting");
     setStatus("waiting_approval");
 
     let approved = false;
     if (onApprovalNeeded) {
+      logger.info({ toolName: toolCall.name }, "[dispatch] calling onApprovalNeeded callback");
       approved = await onApprovalNeeded(request);
+      logger.info({ toolName: toolCall.name, approved }, "[dispatch] onApprovalNeeded returned");
+    } else {
+      logger.warn({ toolName: toolCall.name }, "[dispatch] no onApprovalNeeded callback registered");
     }
 
     setStatus("running");
@@ -83,12 +101,14 @@ export async function executeToolCall(
         rejected: true,
       };
     }
+    logger.info({ toolName: toolCall.name }, "[dispatch] approval granted, proceeding to execute");
   }
 
   // 4. 执行工具
   const startTime = Date.now();
   let toolResult: ToolResult;
 
+  logger.info({ toolName: toolCall.name, params }, "[dispatch] executing tool");
   try {
     toolResult = await tool.execute(params);
   } catch (err) {
@@ -97,8 +117,8 @@ export async function executeToolCall(
     toolResult = { success: false, error: message };
   }
 
-  // 5. 记录执行日志
   const durationMs = Date.now() - startTime;
+  logger.info({ toolName: toolCall.name, success: toolResult.success, durationMs }, "[dispatch] tool execution completed");
   await storage.logToolExecution(toolCall.name, params, toolResult, durationMs, sessionId).catch((err) => {
     logger.warn({ err }, "failed to log tool execution");
   });

@@ -114,6 +114,7 @@ export class OpenAIProvider implements LLMProvider {
 
           if (delta.tool_calls?.length) {
             chatChunk.toolCalls = delta.tool_calls.map((tc) => ({
+              index: tc.index,
               id: tc.id,
               name: tc.function?.name,
               arguments: tc.function?.arguments,
@@ -156,11 +157,20 @@ export class OpenAIProvider implements LLMProvider {
             role: "user",
             content,
           };
-        case "assistant":
-          return {
+        case "assistant": {
+          const assistantMsg: Record<string, unknown> = {
             role: "assistant",
             content: typeof content === "string" ? content : content,
           };
+          if (msg.toolCalls && msg.toolCalls.length > 0) {
+            assistantMsg.tool_calls = msg.toolCalls.map((tc) => ({
+              type: "function" as const,
+              id: tc.id,
+              function: { name: tc.name, arguments: tc.arguments },
+            }));
+          }
+          return assistantMsg as OpenAIMessageParam;
+        }
         case "tool":
           return {
             role: "tool",

@@ -20,8 +20,15 @@ export function App({ config, agent, storage }: AppProps) {
   const { stdout } = useStdout();
   const [confirmExit, setConfirmExit] = useState(false);
 
-  const { messages, isRunning, pendingApproval, sendMessage, appendMessages, setMessages } =
-    useAgent(agent);
+  const {
+    messages,
+    isRunning,
+    pendingApproval,
+    sendMessage,
+    resolveApproval,
+    appendMessages,
+    setMessages,
+  } = useAgent(agent);
 
   const { currentSessionId, handleCommand, loadHistory, switchSession } = useSession(storage);
 
@@ -37,7 +44,6 @@ export function App({ config, agent, storage }: AppProps) {
       setMessages([welcomeMsg, ...history]);
     };
     void init();
-     
   }, []);
 
   // Ctrl+C 退出处理
@@ -105,12 +111,8 @@ export function App({ config, agent, storage }: AppProps) {
         <ApprovalPrompt
           request={pendingApproval.request}
           timeoutSeconds={config.approval.timeout}
-          onApprove={() => {
-            pendingApproval.resolve(true);
-          }}
-          onReject={() => {
-            pendingApproval.resolve(false);
-          }}
+          onApprove={() => resolveApproval(true)}
+          onReject={() => resolveApproval(false)}
         />
       )}
 

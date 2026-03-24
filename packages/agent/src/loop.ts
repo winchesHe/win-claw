@@ -55,6 +55,8 @@ export async function* conversationLoop(ctx: LoopContext): AsyncGenerator<AgentE
 
   // 6. 主循环（最多 maxIterations 轮）
   let iterations = 0;
+  let consecutiveToolFailures = 0;
+  const MAX_CONSECUTIVE_TOOL_FAILURES = 2;
 
   while (iterations < maxIterations) {
     iterations++;
@@ -113,10 +115,11 @@ export async function* conversationLoop(ctx: LoopContext): AsyncGenerator<AgentE
     // 将 assistant 消息（含 toolCalls）追加到 loopMessages
     loopMessages = [
       ...loopMessages,
-      { role: "assistant", content: content || "", toolCalls } as Message,
+      { role: "assistant", content: content || "", toolCalls },
     ];
 
     // e. 工具调用时 yield tool_call 事件，调用 executeToolCall，yield tool_result 事件
+    let allToolsFailed = true;
     for (const toolCall of toolCalls) {
       let parsedParams: unknown;
       try {
@@ -136,6 +139,10 @@ export async function* conversationLoop(ctx: LoopContext): AsyncGenerator<AgentE
         logger,
       });
 
+      if (toolResult.success) {
+        allToolsFailed = false;
+      }
+
       yield { type: "tool_result", result: toolResult };
 
       // f. 将工具结果追加到 loopMessages 继续下一轮
@@ -151,6 +158,24 @@ export async function* conversationLoop(ctx: LoopContext): AsyncGenerator<AgentE
 
       await storage.saveMessage(sessionId, toolMessage);
       loopMessages = [...loopMessages, toolMessage];
+    }
+
+    // g. 连续工具调用全部失败时提前中断，避免无限重试
+    if (allToolsFailed) {
+      consecutiveToolFailures++;
+      if (consecutiveToolFailures >= MAX_CONSECUTIVE_TOOL_FAILURES) {
+        logger.warn(
+          { consecutiveToolFailures },
+          "too many consecutive tool call failures, stopping loop",
+        );
+        yield {
+          type: "text",
+          content: "工具调用连续失败，已停止重试。请检查工具参数或换一种方式完成任务。",
+        };
+        break;
+      }
+    } else {
+      consecutiveToolFailures = 0;
     }
   }
 

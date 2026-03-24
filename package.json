@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "pnpm -r run build",
+    "dev": "pnpm -r --parallel run dev",
     "check": "eslint . && prettier --check . && tsc --noEmit",
     "test": "vitest run",
     "clean": "pnpm -r run clean"

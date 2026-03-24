@@ -7,6 +7,7 @@ interface UseAgentReturn {
   isRunning: boolean;
   pendingApproval: PendingApproval | null;
   sendMessage: (content: string, sessionId: string) => Promise<void>;
+  resolveApproval: (approved: boolean) => void;
   appendMessages: (msgs: ChatMessage[]) => void;
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
 }
@@ -138,11 +139,20 @@ export function useAgent(agent: Agent): UseAgentReturn {
     [agent, isRunning],
   );
 
+  const resolveApproval = useCallback((approved: boolean) => {
+    if (pendingApproval) {
+      const { resolve } = pendingApproval;
+      setPendingApproval(null);
+      resolve(approved);
+    }
+  }, [pendingApproval]);
+
   return {
     messages,
     isRunning,
     pendingApproval,
     sendMessage,
+    resolveApproval,
     appendMessages,
     setMessages,
   };

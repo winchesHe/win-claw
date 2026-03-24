@@ -77,17 +77,32 @@ const fileDeleteTool: Tool = {
   },
 };
 
-async function listEntries(dirPath: string, recursive: boolean): Promise<FileEntry[]> {
+const MAX_RECURSIVE_DEPTH = 3;
+const MAX_ENTRIES = 500;
+
+async function listEntries(dirPath: string, recursive: boolean, depth = 0): Promise<FileEntry[]> {
   const entries = await fs.readdir(dirPath, { withFileTypes: true });
   const result: FileEntry[] = [];
   for (const entry of entries) {
+    if (result.length >= MAX_ENTRIES) break;
     const fullPath = path.join(dirPath, entry.name);
-    const stat = await fs.stat(fullPath);
+    let size = 0;
+    try {
+      const stat = await fs.stat(fullPath);
+      size = stat.size;
+    } catch {
+      // skip entries we can't stat (permission denied, etc.)
+      continue;
+    }
     const type: "file" | "directory" = entry.isDirectory() ? "directory" : "file";
-    result.push({ name: entry.name, type, size: stat.size });
-    if (recursive && entry.isDirectory()) {
-      const children = await listEntries(fullPath, true);
-      result.push(...children);
+    result.push({ name: entry.name, type, size });
+    if (recursive && entry.isDirectory() && depth < MAX_RECURSIVE_DEPTH) {
+      try {
+        const children = await listEntries(fullPath, true, depth + 1);
+        result.push(...children);
+      } catch {
+        // skip directories we can't read
+      }
     }
   }
   return result;
