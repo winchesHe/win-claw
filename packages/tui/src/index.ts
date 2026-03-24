@@ -103,21 +103,48 @@ async function main() {
   try {
     const storageConfig = StorageConfigLoader.fromYAML(configPath);
     const db = openDatabase(storageConfig.dbPath);
+
+    // 定位 @winches/storage 包的迁移目录
+    let storagePkgDir: string | undefined;
+    try {
+      const { createRequire } = await import("node:module");
+      const require = createRequire(import.meta.url);
+      const storagePkgJson = require.resolve("@winches/storage/package.json");
+      storagePkgDir = dirname(storagePkgJson);
+    } catch { /* fallback below */ }
+
     const migrationPaths = [
+      ...(storagePkgDir
+        ? [
+            resolve(storagePkgDir, "dist/migrations"),
+            resolve(storagePkgDir, "src/migrations"),
+          ]
+        : []),
       resolve(__dirname, "../../node_modules/@winches/storage/dist/migrations"),
       resolve(__dirname, "../../../storage/dist/migrations"),
       resolve(process.cwd(), "packages/storage/dist/migrations"),
       resolve(process.cwd(), "packages/storage/src/migrations"),
     ];
+
+    let migrationApplied = false;
     for (const migrationsDir of migrationPaths) {
       try {
+        if (!existsSync(migrationsDir)) continue;
         const runner = new MigrationRunner(db, migrationsDir);
         runner.run();
+        migrationApplied = true;
         break;
       } catch { /* try next */ }
     }
-    const embeddingService = new EmbeddingService(storageConfig.embedding);
-    storage = new SqliteStorageService(db, embeddingService);
+
+    if (!migrationApplied) {
+      process.stderr.write(
+        `警告：未找到可用的数据库迁移目录，尝试过的路径：\n${migrationPaths.map((p) => `  - ${p}`).join("\n")}\n`,
+      );
+    }
+    // 使用 no-op embedding service，避免未配置 API key 时报错
+    const noopEmbedding = { embed: async () => [] } as unknown as EmbeddingService;
+    storage = new SqliteStorageService(db, noopEmbedding);
   } catch (err) {
     process.stderr.write(
       `警告：存储服务初始化失败，将以无持久化模式运行。原因：${err instanceof Error ? err.message : String(err)}\n`,
