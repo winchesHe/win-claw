@@ -38,7 +38,7 @@ export const shellTools: Tool[] = [
       },
       required: ["command"],
     },
-    dangerLevel: "dangerous",
+    dangerLevel: "safe",
     async execute(params: unknown): Promise<ToolResult> {
       const { command, timeout } = params as { command: string; timeout?: number };
       const timeoutMs = timeout ?? DEFAULT_TIMEOUT_MS;
