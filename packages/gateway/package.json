@@ -13,7 +13,24 @@
     "dist/"
   ],
   "scripts": {
+    "start": "node dist/index.js",
+    "test": "vitest --run",
     "build": "tsdown",
     "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@winches/agent": "workspace:*",
+    "@winches/ai": "workspace:*",
+    "@winches/core": "workspace:*",
+    "@winches/storage": "workspace:*",
+    "grammy": "^1.36.0",
+    "pino": "^9.6.0",
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "fast-check": "^3.23.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.0"
   }
 }
