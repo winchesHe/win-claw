@@ -9,6 +9,7 @@ import type {
   ForgetStrategy,
   WorkingMemoryOptions,
   WorkingMemory,
+  SessionInfo,
   ScheduledTask,
   ApprovalRequest,
   ApprovalStatus,
@@ -167,6 +168,24 @@ export class SqliteStorageService implements StorageService {
       )
       .all(`%${query}%`, topK) as MessageRow[];
     return rows.map((row) => deserializeMessage(row));
+  }
+
+  async listSessions(limit = 20): Promise<SessionInfo[]> {
+    const rows = this.db
+      .prepare(
+        `SELECT session_id, COUNT(*) as message_count, MAX(created_at) as last_active_at
+         FROM messages
+         GROUP BY session_id
+         ORDER BY last_active_at DESC
+         LIMIT ?`,
+      )
+      .all(limit) as { session_id: string; message_count: number; last_active_at: number }[];
+
+    return rows.map((row) => ({
+      sessionId: row.session_id,
+      messageCount: row.message_count,
+      lastActiveAt: new Date(row.last_active_at),
+    }));
   }
 
   async searchEpisodic(query: string, options?: EpisodicSearchOptions): Promise<EpisodicMemory[]> {

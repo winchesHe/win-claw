@@ -126,6 +126,13 @@ export interface ToolExecutionLog {
   createdAt: Date;
 }
 
+/** 会话信息 */
+export interface SessionInfo {
+  sessionId: string;
+  messageCount: number;
+  lastActiveAt: Date;
+}
+
 // ===== 核心服务接口 =====
 
 /** StorageService 核心服务接口 */
@@ -134,6 +141,7 @@ export interface StorageService {
   saveMessage(sessionId: string, message: Message): Promise<void>;
   getHistory(sessionId: string, limit?: number): Promise<Message[]>;
   searchHistory(query: string, topK?: number): Promise<Message[]>;
+  listSessions(limit?: number): Promise<SessionInfo[]>;
 
   // 长期记忆
   remember(content: string, tags?: string[], options?: RememberOptions): Promise<Memory>;

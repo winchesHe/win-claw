@@ -59,8 +59,14 @@ function createNullStorage(): StorageService {
     saveMessage: async () => {},
     getHistory: async () => [],
     searchHistory: async () => [],
-    remember: async () => ({ id: "", content: "", tags: [], createdAt: new Date() }),
+    listSessions: async () => [],
+    remember: async () => ({ id: "", content: "", tags: [], createdAt: new Date(), importance: 0.5 }),
     recall: async () => [],
+    forget: async () => 0,
+    rememberWorking: async () => ({ id: "", sessionId: "", content: "", createdAt: new Date(), ttl: 0, importance: 0.5 }),
+    recallWorking: async () => [],
+    searchEpisodic: async () => [],
+    memorySummary: async () => ({ longTerm: { count: 0, avgImportance: 0 }, working: { count: 0, activeCount: 0 }, episodic: { totalMessages: 0, vectorizedCount: 0 } }),
     saveScheduledTask: async () => {},
     getPendingTasks: async () => [],
     updateTaskStatus: async () => {},
@@ -156,10 +162,51 @@ async function main() {
 
   const registry = createDefaultRegistry();
 
+  const activeStorage = (storage ?? createNullStorage()) as StorageService;
+
+  // 注册 memory 工具（与 TUI 保持一致）
+  registry.register({
+    name: "memory-remember",
+    description: "Save a piece of information to long-term memory for future recall. Use this when the user explicitly asks you to remember something.",
+    parameters: {
+      type: "object",
+      properties: {
+        content: { type: "string", description: "The content to remember" },
+        tags: { type: "array", items: { type: "string" }, description: "Optional tags for categorization" },
+      },
+      required: ["content"],
+    },
+    dangerLevel: "safe",
+    async execute(params: unknown) {
+      const { content, tags } = params as { content: string; tags?: string[] };
+      const memory = await activeStorage.remember(content, tags);
+      return { success: true, data: { id: memory.id, content: memory.content, tags: memory.tags } };
+    },
+  });
+
+  registry.register({
+    name: "memory-recall",
+    description: "Search long-term memory for relevant information. Use this to retrieve previously remembered facts.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "The search query" },
+        topK: { type: "number", description: "Max number of results (default 5)" },
+      },
+      required: ["query"],
+    },
+    dangerLevel: "safe",
+    async execute(params: unknown) {
+      const { query, topK } = params as { query: string; topK?: number };
+      const memories = await activeStorage.recall(query, topK ?? 5);
+      return { success: true, data: memories.map((m) => ({ content: m.content, tags: m.tags })) };
+    },
+  });
+
   const bot = new GatewayBot(
     config,
     llmProvider,
-    (storage ?? createNullStorage()) as unknown as StorageService,
+    activeStorage,
     registry as never,
   );
 

@@ -108,11 +108,21 @@ export function useSession(storage: StorageService | null): UseSessionReturn {
             };
           }
           try {
-            // StorageService 没有直接的 listSessions 方法，通过搜索历史来获取
-            // 这里返回当前 session 信息作为降级处理
+            const sessions = await storage.listSessions(20);
+            if (sessions.length === 0) {
+              return {
+                handled: true,
+                messages: [systemMsg("暂无历史会话。")],
+              };
+            }
+            const lines = sessions.map((s) => {
+              const isCurrent = s.sessionId === currentSessionId ? " ← 当前" : "";
+              const time = s.lastActiveAt.toLocaleString();
+              return `  ${s.sessionId}  (${s.messageCount} 条消息, ${time})${isCurrent}`;
+            });
             return {
               handled: true,
-              messages: [systemMsg(`当前会话：${currentSessionId}`)],
+              messages: [systemMsg(`历史会话：\n${lines.join("\n")}`)],
             };
           } catch {
             return {

@@ -10,6 +10,7 @@ export type {
   EpisodicSearchOptions,
   EpisodicMemory,
   MemorySummary,
+  SessionInfo,
   ScheduledTask,
   ApprovalRequest,
   ApprovalStatus,
