@@ -17,6 +17,7 @@
     "test": "vitest --run"
   },
   "dependencies": {
+    "@huggingface/transformers": "^3.4.0",
     "@winches/ai": "workspace:*",
     "better-sqlite3": "^11.10.0",
     "sqlite-vec": "^0.1.7",

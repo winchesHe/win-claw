@@ -34,11 +34,11 @@ export async function* conversationLoop(ctx: LoopContext): AsyncGenerator<AgentE
   const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
   let memories: Awaited<ReturnType<typeof storage.recall>> = [];
   if (lastUserMessage) {
+    const query = typeof lastUserMessage.content === "string" ? lastUserMessage.content : "";
+    logger.info({ query: query.slice(0, 80) }, "recall: starting vector search");
     try {
-      memories = await storage.recall(
-        typeof lastUserMessage.content === "string" ? lastUserMessage.content : "",
-        5,
-      );
+      memories = await storage.recall(query, 5);
+      logger.info({ count: memories.length }, "recall: found memories");
     } catch (err) {
       logger.warn({ err }, "memory recall failed, continuing without memories");
     }
@@ -106,6 +106,20 @@ export async function* conversationLoop(ctx: LoopContext): AsyncGenerator<AgentE
       if (content) {
         await storage.saveMessage(sessionId, { role: "assistant", content });
       }
+
+      // 自动记忆：将用户消息存入长期记忆
+      if (lastUserMessage) {
+        const userText = typeof lastUserMessage.content === "string" ? lastUserMessage.content : "";
+        if (userText.length > 0) {
+          try {
+            await storage.remember(userText, ["auto"]);
+            logger.info({ contentLength: userText.length }, "auto-remember: saved user message");
+          } catch (err) {
+            logger.warn({ err }, "auto-remember failed, continuing");
+          }
+        }
+      }
+
       break;
     }
 

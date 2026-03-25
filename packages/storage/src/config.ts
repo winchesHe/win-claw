@@ -150,7 +150,7 @@ export class StorageConfigLoader {
         "embedding.model",
       );
     }
-    if (!config.embedding.apiKey) {
+    if (config.embedding.provider !== "local" && !config.embedding.apiKey) {
       throw new ConfigError(
         "Missing required config field: embedding.apiKey",
         "embedding.apiKey",

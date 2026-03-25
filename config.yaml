@@ -7,8 +7,8 @@ llm:
 
 # Embedding 配置
 embedding:
-  provider: openai
-  model: text-embedding-3-small
+  provider: local
+  model: Xenova/all-MiniLM-L6-v2
 
 # Telegram Bot 配置
 telegram:

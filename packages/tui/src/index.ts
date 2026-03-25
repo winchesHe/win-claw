@@ -142,9 +142,8 @@ async function main() {
         `警告：未找到可用的数据库迁移目录，尝试过的路径：\n${migrationPaths.map((p) => `  - ${p}`).join("\n")}\n`,
       );
     }
-    // 使用 no-op embedding service，避免未配置 API key 时报错
-    const noopEmbedding = { embed: async () => [] } as unknown as EmbeddingService;
-    storage = new SqliteStorageService(db, noopEmbedding);
+    const embedding = new EmbeddingService(storageConfig.embedding);
+    storage = new SqliteStorageService(db, embedding);
   } catch (err) {
     process.stderr.write(
       `警告：存储服务初始化失败，将以无持久化模式运行。原因：${err instanceof Error ? err.message : String(err)}\n`,
@@ -154,10 +153,50 @@ async function main() {
   const { createDefaultRegistry } = await import("@winches/core");
   const registry = createDefaultRegistry();
 
+  // 注册 memory 工具（需要 storage 实例）
+  const activeStorage = storage ?? createNullStorage();
+  registry.register({
+    name: "memory-remember",
+    description: "Save a piece of information to long-term memory for future recall. Use this when the user explicitly asks you to remember something.",
+    parameters: {
+      type: "object",
+      properties: {
+        content: { type: "string", description: "The content to remember" },
+        tags: { type: "array", items: { type: "string" }, description: "Optional tags for categorization" },
+      },
+      required: ["content"],
+    },
+    dangerLevel: "safe",
+    async execute(params: unknown) {
+      const { content, tags } = params as { content: string; tags?: string[] };
+      const memory = await activeStorage.remember(content, tags);
+      return { success: true, data: { id: memory.id, content: memory.content, tags: memory.tags } };
+    },
+  });
+
+  registry.register({
+    name: "memory-recall",
+    description: "Search long-term memory for relevant information. Use this to retrieve previously remembered facts.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "The search query" },
+        topK: { type: "number", description: "Max number of results (default 5)" },
+      },
+      required: ["query"],
+    },
+    dangerLevel: "safe",
+    async execute(params: unknown) {
+      const { query, topK } = params as { query: string; topK?: number };
+      const memories = await activeStorage.recall(query, topK ?? 5);
+      return { success: true, data: memories.map((m) => ({ content: m.content, tags: m.tags })) };
+    },
+  });
+
   const sessionId = `session-${Date.now()}`;
   const agent = new Agent({
     provider: llmProvider,
-    storage: (storage ?? createNullStorage()) as unknown as StorageService,
+    storage: activeStorage as unknown as StorageService,
     registry: registry as never,
     sessionId,
   });
