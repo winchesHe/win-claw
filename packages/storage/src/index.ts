@@ -2,6 +2,14 @@
 export type {
   StorageConfig,
   Memory,
+  RememberOptions,
+  RecallOptions,
+  ForgetStrategy,
+  WorkingMemoryOptions,
+  WorkingMemory,
+  EpisodicSearchOptions,
+  EpisodicMemory,
+  MemorySummary,
   ScheduledTask,
   ApprovalRequest,
   ApprovalStatus,
@@ -18,6 +26,9 @@ export {
   EmbeddingError,
   DuplicateTaskError,
   ApprovalNotFoundError,
+  InvalidImportanceError,
+  InvalidDecayRateError,
+  InvalidForgetOptionsError,
 } from "./errors.js";
 
 // Services

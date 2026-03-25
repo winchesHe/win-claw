@@ -4,13 +4,21 @@ import type { Message } from "@winches/ai";
 import type {
   StorageService,
   Memory,
+  RememberOptions,
+  RecallOptions,
+  ForgetStrategy,
+  WorkingMemoryOptions,
+  WorkingMemory,
   ScheduledTask,
   ApprovalRequest,
   ApprovalStatus,
   ToolExecutionLog,
+  EpisodicMemory,
+  EpisodicSearchOptions,
+  MemorySummary,
 } from "./types.js";
 import { EmbeddingService } from "./embedding.js";
-import { ApprovalNotFoundError, DuplicateTaskError, EmbeddingError } from "./errors.js";
+import { ApprovalNotFoundError, DuplicateTaskError, EmbeddingError, InvalidImportanceError, InvalidDecayRateError, InvalidForgetOptionsError } from "./errors.js";
 
 interface ToolExecutionLogRow {
   id: string;
@@ -57,6 +65,7 @@ interface MessageRow {
   tool_call_id: string | null;
   tool_calls: string | null;
   created_at: number;
+  vector: string | null;
 }
 
 interface MemoryRow {
@@ -64,6 +73,7 @@ interface MemoryRow {
   content: string;
   tags: string;
   created_at: number;
+  importance: number;
   vector: string | null;
 }
 
@@ -122,8 +132,10 @@ export class SqliteStorageService implements StorageService {
 
     void this.embedding
       .embed(textForEmbedding)
-      .then(() => {
-        // 向量存储在后续任务中实现
+      .then((vector) => {
+        this.db
+          .prepare("UPDATE messages SET vector = ? WHERE id = ?")
+          .run(JSON.stringify(vector), id);
       })
       .catch((err: unknown) => {
         this.logger.error({ err }, "Failed to generate embedding for message");
@@ -157,9 +169,61 @@ export class SqliteStorageService implements StorageService {
     return rows.map((row) => deserializeMessage(row));
   }
 
+  async searchEpisodic(query: string, options?: EpisodicSearchOptions): Promise<EpisodicMemory[]> {
+    const topK = options?.topK ?? 5;
+
+    const conditions: string[] = ["vector IS NOT NULL"];
+    const params: unknown[] = [];
+
+    if (options?.sessionId !== undefined) {
+      conditions.push("session_id = ?");
+      params.push(options.sessionId);
+    }
+    if (options?.role !== undefined) {
+      conditions.push("role = ?");
+      params.push(options.role);
+    }
+
+    const where = `WHERE ${conditions.join(" AND ")}`;
+    const rows = this.db
+      .prepare(`SELECT * FROM messages ${where} ORDER BY created_at DESC`)
+      .all(...params) as MessageRow[];
+
+    if (rows.length === 0) return [];
+
+    const queryVector = await this.embedding.embed(query);
+
+    const scored = rows.map((row) => {
+      const vec = JSON.parse(row.vector!) as number[];
+      const similarity = cosineSimilarity(queryVector, vec);
+      return {
+        similarity,
+        entry: {
+          id: row.id,
+          sessionId: row.session_id,
+          role: row.role,
+          content: row.content,
+          createdAt: new Date(row.created_at),
+          similarity,
+        } satisfies EpisodicMemory,
+      };
+    });
+
+    return scored
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, topK)
+      .map((s) => s.entry);
+  }
+
   // ===== 长期记忆 =====
 
-  async remember(content: string, tags?: string[]): Promise<Memory> {
+  async remember(content: string, tags?: string[], options?: RememberOptions): Promise<Memory> {
+    const importance = options?.importance ?? 0.5;
+
+    if (importance < 0 || importance > 1) {
+      throw new InvalidImportanceError(importance);
+    }
+
     let vector: number[];
     try {
       vector = await this.embedding.embed(content);
@@ -174,20 +238,30 @@ export class SqliteStorageService implements StorageService {
 
     this.db
       .prepare(
-        "INSERT INTO memories (id, content, tags, created_at, vector) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO memories (id, content, tags, created_at, importance, vector) VALUES (?, ?, ?, ?, ?, ?)",
       )
-      .run(id, content, tagsJson, createdAt, vectorJson);
+      .run(id, content, tagsJson, createdAt, importance, vectorJson);
 
     return {
       id,
       content,
       tags: tags ?? [],
       createdAt: new Date(createdAt),
+      importance,
       vector,
     };
   }
 
-  async recall(query: string, topK = 5): Promise<Memory[]> {
+  async recall(query: string, topK = 5, options?: RecallOptions): Promise<Memory[]> {
+    const decayRate = options?.decayRate ?? 0.1;
+
+    if (decayRate < 0) {
+      throw new InvalidDecayRateError(decayRate);
+    }
+
+    const importanceWeight = options?.importanceWeight ?? 0.3;
+    const limit = options?.topK ?? topK;
+
     const queryVector = await this.embedding.embed(query);
 
     const rows = this.db
@@ -196,15 +270,22 @@ export class SqliteStorageService implements StorageService {
 
     if (rows.length === 0) return [];
 
+    const now = Date.now();
+
     const scored = rows.map((row) => {
       const vec = JSON.parse(row.vector!) as number[];
+      const similarity = cosineSimilarity(queryVector, vec);
+      const ageInDays = (now - row.created_at) / 86_400_000;
+      const decay = Math.exp(-decayRate * ageInDays);
+      const compositeScore = similarity * decay * (1 + importanceWeight * row.importance);
       return {
-        score: cosineSimilarity(queryVector, vec),
+        score: compositeScore,
         memory: {
           id: row.id,
           content: row.content,
           tags: JSON.parse(row.tags) as string[],
           createdAt: new Date(row.created_at),
+          importance: row.importance,
           vector: vec,
         } satisfies Memory,
       };
@@ -212,8 +293,144 @@ export class SqliteStorageService implements StorageService {
 
     return scored
       .sort((a, b) => b.score - a.score)
-      .slice(0, topK)
+      .slice(0, limit)
       .map((s) => s.memory);
+  }
+
+  // ===== 遗忘机制 =====
+
+  async forget(strategy: ForgetStrategy): Promise<number> {
+    // Validate strategy fields before executing any deletes (Req 3.5)
+    if (strategy.type === 'importance') {
+      if (strategy.threshold === undefined || strategy.threshold === null) {
+        throw new InvalidForgetOptionsError('threshold');
+      }
+    } else if (strategy.type === 'time') {
+      if (strategy.olderThanMs === undefined || strategy.olderThanMs === null) {
+        throw new InvalidForgetOptionsError('olderThanMs');
+      }
+    } else if (strategy.type === 'capacity') {
+      if (strategy.maxCount === undefined || strategy.maxCount === null) {
+        throw new InvalidForgetOptionsError('maxCount');
+      }
+    } else {
+      throw new InvalidForgetOptionsError('type');
+    }
+
+    // Execute all deletes atomically in a single transaction (Req 3.6)
+    const runInTransaction = this.db.transaction(() => {
+      if (strategy.type === 'importance') {
+        // Delete all memories where importance < threshold (Req 3.2)
+        const result = this.db
+          .prepare('DELETE FROM memories WHERE importance < ?')
+          .run(strategy.threshold);
+        return result.changes;
+      } else if (strategy.type === 'time') {
+        // Delete all memories where created_at < (now - olderThanMs) (Req 3.3)
+        const cutoff = Date.now() - strategy.olderThanMs;
+        const result = this.db
+          .prepare('DELETE FROM memories WHERE created_at < ?')
+          .run(cutoff);
+        return result.changes;
+      } else {
+        // capacity strategy: keep top maxCount by retention_score, delete the rest (Req 3.4)
+        // retention_score = importance × exp(-0.1 × age_in_days)
+        const now = Date.now();
+        const rows = this.db
+          .prepare('SELECT id, importance, created_at FROM memories')
+          .all() as { id: string; importance: number; created_at: number }[];
+
+        if (rows.length <= strategy.maxCount) {
+          return 0;
+        }
+
+        const scored = rows.map((row) => {
+          const ageInDays = (now - row.created_at) / 86_400_000;
+          const retentionScore = row.importance * Math.exp(-0.1 * ageInDays);
+          return { id: row.id, score: retentionScore };
+        });
+
+        // Sort descending by retention score, keep top maxCount, delete the rest
+        scored.sort((a, b) => b.score - a.score);
+        const toDelete = scored.slice(strategy.maxCount).map((s) => s.id);
+
+        if (toDelete.length === 0) return 0;
+
+        const placeholders = toDelete.map(() => '?').join(', ');
+        const result = this.db
+          .prepare(`DELETE FROM memories WHERE id IN (${placeholders})`)
+          .run(...toDelete);
+        return result.changes;
+      }
+    });
+
+    return runInTransaction() as number;
+  }
+
+  // ===== 工作记忆 =====
+
+  async rememberWorking(content: string, sessionId: string, options?: WorkingMemoryOptions): Promise<WorkingMemory> {
+    const ttl = options?.ttl ?? 3_600_000;
+    const capacity = options?.capacity ?? 50;
+    const importance = options?.importance ?? 0.5;
+
+    // Check if at capacity; if so, evict the oldest entry for this session (Req 4.4, 4.7)
+    const countRow = this.db
+      .prepare('SELECT COUNT(*) as count FROM working_memories WHERE session_id = ?')
+      .get(sessionId) as { count: number };
+
+    if (countRow.count >= capacity) {
+      this.db
+        .prepare(
+          'DELETE FROM working_memories WHERE id = (SELECT id FROM working_memories WHERE session_id = ? ORDER BY created_at ASC LIMIT 1)',
+        )
+        .run(sessionId);
+    }
+
+    const id = crypto.randomUUID();
+    const createdAt = Date.now();
+
+    this.db
+      .prepare(
+        'INSERT INTO working_memories (id, session_id, content, created_at, ttl, importance) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run(id, sessionId, content, createdAt, ttl, importance);
+
+    return {
+      id,
+      sessionId,
+      content,
+      createdAt: new Date(createdAt),
+      ttl,
+      importance,
+    };
+  }
+
+  async recallWorking(sessionId: string): Promise<WorkingMemory[]> {
+    const now = Date.now();
+
+    // Only return non-expired entries: created_at + ttl > now (Req 4.3)
+    const rows = this.db
+      .prepare(
+        'SELECT * FROM working_memories WHERE session_id = ? AND (created_at + ttl) > ? ORDER BY created_at ASC',
+      )
+      .all(sessionId, now) as {
+        id: string;
+        session_id: string;
+        content: string;
+        created_at: number;
+        ttl: number;
+        importance: number;
+      }[];
+
+    return rows.map((row) => ({
+      id: row.id,
+      sessionId: row.session_id,
+      content: row.content,
+      createdAt: new Date(row.created_at),
+      ttl: row.ttl,
+      importance: row.importance,
+    }));
   }
 
   // ===== 定时任务 =====
@@ -344,5 +561,27 @@ export class SqliteStorageService implements StorageService {
     this.db
       .prepare("UPDATE approval_requests SET status = ? WHERE id = ?")
       .run(status, id);
+  }
+
+  // ===== 记忆摘要 =====
+
+  async memorySummary(): Promise<MemorySummary> {
+    const now = Date.now();
+
+    const longTermCount = (this.db.prepare("SELECT COUNT(*) as count FROM memories").get() as { count: number }).count;
+    const avgImportanceRow = this.db.prepare("SELECT AVG(importance) as avg FROM memories").get() as { avg: number | null };
+    const avgImportance = avgImportanceRow.avg ?? 0;
+
+    const workingCount = (this.db.prepare("SELECT COUNT(*) as count FROM working_memories").get() as { count: number }).count;
+    const workingActiveCount = (this.db.prepare("SELECT COUNT(*) as count FROM working_memories WHERE created_at + ttl > ?").get(now) as { count: number }).count;
+
+    const totalMessages = (this.db.prepare("SELECT COUNT(*) as count FROM messages").get() as { count: number }).count;
+    const vectorizedCount = (this.db.prepare("SELECT COUNT(*) as count FROM messages WHERE vector IS NOT NULL").get() as { count: number }).count;
+
+    return {
+      longTerm: { count: longTermCount, avgImportance },
+      working: { count: workingCount, activeCount: workingActiveCount },
+      episodic: { totalMessages, vectorizedCount },
+    };
   }
 }

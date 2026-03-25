@@ -68,3 +68,42 @@ export class ApprovalNotFoundError extends StorageError {
     this.approvalId = approvalId;
   }
 }
+
+/** importance 值超出 [0,1] 范围错误 */
+export class InvalidImportanceError extends StorageError {
+  public readonly value: number;
+
+  constructor(value: number) {
+    super(
+      `Importance value ${value} is out of range [0, 1]`,
+      "INVALID_IMPORTANCE",
+    );
+    this.name = "InvalidImportanceError";
+    this.value = value;
+  }
+}
+
+/** decayRate 为负数错误 */
+export class InvalidDecayRateError extends StorageError {
+  public readonly value: number;
+
+  constructor(value: number) {
+    super(`Decay rate ${value} must be >= 0`, "INVALID_DECAY_RATE");
+    this.name = "InvalidDecayRateError";
+    this.value = value;
+  }
+}
+
+/** forget() 参数缺少必要字段错误 */
+export class InvalidForgetOptionsError extends StorageError {
+  public readonly missingField: string;
+
+  constructor(missingField: string) {
+    super(
+      `forget() options missing required field: "${missingField}"`,
+      "INVALID_FORGET_OPTIONS",
+    );
+    this.name = "InvalidForgetOptionsError";
+    this.missingField = missingField;
+  }
+}

@@ -11,7 +11,9 @@
     "dev": "pnpm -r --parallel run dev",
     "check": "eslint . && prettier --check . && tsc --noEmit",
     "test": "vitest run",
-    "clean": "pnpm -r run clean"
+    "clean": "pnpm -r run clean",
+    "start:gateway": "pnpm --filter @winches/gateway run start",
+    "start:tui": "pnpm --filter @winches/tui run start"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
