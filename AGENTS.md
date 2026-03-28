@@ -49,14 +49,14 @@ cp .env.example .env
 
 所有环境变量以 `AGENT_` 为前缀，优先级高于 `config.yaml`：
 
-| 变量 | 说明 | 必填 |
-|------|------|------|
-| `AGENT_API_KEY` | LLM API Key | 是 |
-| `AGENT_LLM_PROVIDER` | Provider 覆盖（openai / anthropic / google / openai-compatible） | 否 |
-| `AGENT_LLM_MODEL` | 模型覆盖 | 否 |
-| `AGENT_LLM_BASE_URL` | 自定义 endpoint（openai-compatible 时使用） | 否 |
-| `AGENT_TELEGRAM_TOKEN` | Telegram Bot Token | Gateway 必填 |
-| `AGENT_STORAGE_DB_PATH` | SQLite 路径（默认 `./data/agent.db`） | 否 |
+| 变量                    | 说明                                                             | 必填         |
+| ----------------------- | ---------------------------------------------------------------- | ------------ |
+| `AGENT_API_KEY`         | LLM API Key                                                      | 是           |
+| `AGENT_LLM_PROVIDER`    | Provider 覆盖（openai / anthropic / google / openai-compatible） | 否           |
+| `AGENT_LLM_MODEL`       | 模型覆盖                                                         | 否           |
+| `AGENT_LLM_BASE_URL`    | 自定义 endpoint（openai-compatible 时使用）                      | 否           |
+| `AGENT_TELEGRAM_TOKEN`  | Telegram Bot Token                                               | Gateway 必填 |
+| `AGENT_STORAGE_DB_PATH` | SQLite 路径（默认 `./data/agent.db`）                            | 否           |
 
 ### 配置文件
 
@@ -180,6 +180,7 @@ pnpm vitest run packages/agent/src/__tests__/agent.test.ts
 ### 导出模式
 
 每个包通过 `src/index.ts` 统一导出公共 API：
+
 - 类型用 `export type { ... }` 导出
 - 类和函数用 `export { ... }` 导出
 - 按类别分组注释（Types、Errors、Core classes、Providers 等）
@@ -250,19 +251,19 @@ Agent 不是独立服务，而是被 TUI 和 Gateway 直接 import 使用：
 
 ### 工具权限三级模型
 
-| 级别 | 行为 | 示例 |
-|------|------|------|
-| `safe` | 直接执行 | file.read、file.list |
-| `confirm` | 需用户确认 | file.write、file.move |
+| 级别        | 行为                         | 示例                    |
+| ----------- | ---------------------------- | ----------------------- |
+| `safe`      | 直接执行                     | file.read、file.list    |
+| `confirm`   | 需用户确认                   | file.write、file.move   |
 | `dangerous` | 需明确批准，支持超时自动拒绝 | file.delete、shell.exec |
 
 ### 三层记忆架构
 
-| 层级 | 生命周期 | 检索方式 |
-|------|----------|----------|
-| 长期记忆 | 永久 | 向量相似度 × 时间衰减 × 重要性权重 |
-| 工作记忆 | 会话级，TTL 1h | 按 sessionId 查询 |
-| 情景记忆 | 随对话永久保存 | 对话消息的向量语义搜索 |
+| 层级     | 生命周期       | 检索方式                           |
+| -------- | -------------- | ---------------------------------- |
+| 长期记忆 | 永久           | 向量相似度 × 时间衰减 × 重要性权重 |
+| 工作记忆 | 会话级，TTL 1h | 按 sessionId 查询                  |
+| 情景记忆 | 随对话永久保存 | 对话消息的向量语义搜索             |
 
 ### 工具名称转换
 
@@ -278,6 +279,15 @@ Agent 不是独立服务，而是被 TUI 和 Gateway 直接 import 使用：
 6. 创建 `src/types.ts` 定义类型
 7. 创建 `src/errors.ts` 定义错误类
 8. 使用 `workspace:*` 引用内部依赖
+
+## 文档目录（`docs/`）
+
+`docs/` 目录存放项目的设计文档和架构决策记录：
+
+- `docs/specs/` — 功能设计文档（如 `winches-agent-design.md` 总体架构设计）
+- `docs/adr/` — 架构决策记录（ADR），命名格式 `adr-NNNN-<slug>.md`，记录重要技术决策的背景、方案与结论
+
+新增设计文档放入 `docs/specs/`，新增架构决策按编号递增放入 `docs/adr/`。
 
 ## 数据库迁移
 

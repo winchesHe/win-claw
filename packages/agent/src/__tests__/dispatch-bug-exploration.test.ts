@@ -71,10 +71,7 @@ describe("Bug Exploration — Missing required parameter validation", () => {
     const ctx = makeCtx({ registry });
 
     // Call with valid JSON but missing required param "dirPath"
-    const result = await executeToolCall(
-      { id: "call_1", name: "file.list", arguments: "{}" },
-      ctx,
-    );
+    const result = await executeToolCall({ id: "call_1", name: "file.list", arguments: "{}" }, ctx);
 
     // Expected behavior: should fail with clear error mentioning "dirPath"
     expect(result.toolResult.success).toBe(false);

@@ -31,7 +31,7 @@ const fileReadTool: Tool = {
 const fileWriteTool: Tool = {
   name: "file.write",
   description: "将内容写入指定路径的文件，目录不存在时自动创建",
-  dangerLevel: "confirm" as DangerLevel,
+  dangerLevel: "safe" as DangerLevel,
   parameters: {
     type: "object",
     properties: {
@@ -141,7 +141,7 @@ const fileListTool: Tool = {
 const fileMoveTool: Tool = {
   name: "file.move",
   description: "将文件从源路径移动到目标路径，目标目录不存在时自动创建",
-  dangerLevel: "confirm" as DangerLevel,
+  dangerLevel: "safe" as DangerLevel,
   parameters: {
     type: "object",
     properties: {

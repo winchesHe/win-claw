@@ -31,10 +31,7 @@ export class ToolRegistry {
 
 export function createDefaultRegistry(): ToolRegistry {
   const registry = new ToolRegistry();
-  const allTools = [
-    ...fileTools,
-    ...shellTools,
-  ];
+  const allTools = [...fileTools, ...shellTools];
   for (const tool of allTools) {
     registry.register(tool);
   }

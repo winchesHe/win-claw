@@ -5,11 +5,7 @@ import type { Message, ToolDefinition, ProviderConfig, ChatChunk } from "../../t
 vi.mock("openai", () => {
   const APIError = class extends Error {
     status?: number;
-    constructor(
-      status: number | undefined,
-      _error: unknown,
-      message: string,
-    ) {
+    constructor(status: number | undefined, _error: unknown, message: string) {
       super(message);
       this.status = status;
       this.name = "APIError";
@@ -78,31 +74,21 @@ describe("OpenAIProvider", () => {
 
   describe("toOpenAIMessages", () => {
     it("should convert system message with string content", () => {
-      const messages: Message[] = [
-        { role: "system", content: "You are helpful" },
-      ];
+      const messages: Message[] = [{ role: "system", content: "You are helpful" }];
       const result = provider.toOpenAIMessages(messages);
-      expect(result).toEqual([
-        { role: "system", content: "You are helpful" },
-      ]);
+      expect(result).toEqual([{ role: "system", content: "You are helpful" }]);
     });
 
     it("should convert user message with string content", () => {
-      const messages: Message[] = [
-        { role: "user", content: "Hello" },
-      ];
+      const messages: Message[] = [{ role: "user", content: "Hello" }];
       const result = provider.toOpenAIMessages(messages);
       expect(result).toEqual([{ role: "user", content: "Hello" }]);
     });
 
     it("should convert assistant message", () => {
-      const messages: Message[] = [
-        { role: "assistant", content: "Hi there" },
-      ];
+      const messages: Message[] = [{ role: "assistant", content: "Hi there" }];
       const result = provider.toOpenAIMessages(messages);
-      expect(result).toEqual([
-        { role: "assistant", content: "Hi there" },
-      ]);
+      expect(result).toEqual([{ role: "assistant", content: "Hi there" }]);
     });
 
     it("should convert tool message with toolCallId", () => {
@@ -218,8 +204,12 @@ describe("OpenAIProvider", () => {
       ];
       const result = provider.toOpenAITools(tools);
       expect(result).toHaveLength(2);
-      expect((result[0] as { type: "function"; function: { name: string } }).function.name).toBe("tool_a");
-      expect((result[1] as { type: "function"; function: { name: string } }).function.name).toBe("tool_b");
+      expect((result[0] as { type: "function"; function: { name: string } }).function.name).toBe(
+        "tool_a",
+      );
+      expect((result[1] as { type: "function"; function: { name: string } }).function.name).toBe(
+        "tool_b",
+      );
     });
   });
 
@@ -313,9 +303,7 @@ describe("OpenAIProvider", () => {
         },
       });
 
-      const result = await provider.chat([
-        { role: "user", content: "Hi" },
-      ]);
+      const result = await provider.chat([{ role: "user", content: "Hi" }]);
 
       expect(result.content).toBe("Hello!");
       expect(result.toolCalls).toBeUndefined();
@@ -361,10 +349,11 @@ describe("OpenAIProvider", () => {
         },
       ];
 
-      const result = await provider.chat(
-        [{ role: "user", content: "Weather?" }],
-        { tools, temperature: 0.5, maxTokens: 100 },
-      );
+      const result = await provider.chat([{ role: "user", content: "Weather?" }], {
+        tools,
+        temperature: 0.5,
+        maxTokens: 100,
+      });
 
       expect(result.toolCalls).toEqual([
         {
@@ -390,10 +379,7 @@ describe("OpenAIProvider", () => {
         choices: [{ message: { content: "ok" } }],
       });
 
-      await provider.chat(
-        [{ role: "user", content: "test" }],
-        { model: "gpt-3.5-turbo" },
-      );
+      await provider.chat([{ role: "user", content: "test" }], { model: "gpt-3.5-turbo" });
 
       expect(client.chat.completions.create).toHaveBeenCalledWith(
         expect.objectContaining({ model: "gpt-3.5-turbo" }),
@@ -403,16 +389,10 @@ describe("OpenAIProvider", () => {
     it("should wrap OpenAI APIError into ProviderError", async () => {
       const client = getClient(provider);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const apiError = new (OpenAI as any).APIError(
-        401,
-        {},
-        "Unauthorized",
-      );
+      const apiError = new (OpenAI as any).APIError(401, {}, "Unauthorized");
       client.chat.completions.create.mockRejectedValue(apiError);
 
-      await expect(
-        provider.chat([{ role: "user", content: "test" }]),
-      ).rejects.toMatchObject({
+      await expect(provider.chat([{ role: "user", content: "test" }])).rejects.toMatchObject({
         name: "ProviderError",
         provider: "openai",
         statusCode: 401,
@@ -426,25 +406,17 @@ describe("OpenAIProvider", () => {
 
       async function* mockStream() {
         yield {
-          choices: [
-            { delta: { content: "Hello" } },
-          ],
+          choices: [{ delta: { content: "Hello" } }],
         };
         yield {
-          choices: [
-            { delta: { content: " world" } },
-          ],
+          choices: [{ delta: { content: " world" } }],
         };
       }
 
-      client.chat.completions.create.mockResolvedValue(
-        mockStream(),
-      );
+      client.chat.completions.create.mockResolvedValue(mockStream());
 
       const chunks: ChatChunk[] = [];
-      for await (const chunk of provider.chatStream([
-        { role: "user", content: "Hi" },
-      ])) {
+      for await (const chunk of provider.chatStream([{ role: "user", content: "Hi" }])) {
         chunks.push(chunk);
       }
 
@@ -488,14 +460,10 @@ describe("OpenAIProvider", () => {
         };
       }
 
-      client.chat.completions.create.mockResolvedValue(
-        mockStream(),
-      );
+      client.chat.completions.create.mockResolvedValue(mockStream());
 
       const chunks: ChatChunk[] = [];
-      for await (const chunk of provider.chatStream([
-        { role: "user", content: "test" },
-      ])) {
+      for await (const chunk of provider.chatStream([{ role: "user", content: "test" }])) {
         chunks.push(chunk);
       }
 
@@ -514,14 +482,10 @@ describe("OpenAIProvider", () => {
         yield { choices: [] };
       }
 
-      client.chat.completions.create.mockResolvedValue(
-        mockStream(),
-      );
+      client.chat.completions.create.mockResolvedValue(mockStream());
 
       const chunks: ChatChunk[] = [];
-      for await (const chunk of provider.chatStream([
-        { role: "user", content: "test" },
-      ])) {
+      for await (const chunk of provider.chatStream([{ role: "user", content: "test" }])) {
         chunks.push(chunk);
       }
 

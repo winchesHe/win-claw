@@ -3,9 +3,7 @@ import type { StorageService } from "@winches/storage";
 import type { ChatMessage } from "../types.js";
 
 /** 解析斜杠命令，返回命令类型和参数 */
-export function parseCommand(
-  input: string,
-): { command: string; args: string[] } | null {
+export function parseCommand(input: string): { command: string; args: string[] } | null {
   if (!input.startsWith("/")) return null;
   const parts = input.slice(1).trim().split(/\s+/);
   const command = parts[0].toLowerCase();
@@ -22,9 +20,7 @@ const HELP_TEXT = `可用命令：
 interface UseSessionReturn {
   currentSessionId: string;
   /** 处理斜杠命令，返回要追加到消息列表的系统消息（null 表示非命令） */
-  handleCommand: (
-    input: string,
-  ) => Promise<{ handled: boolean; messages: ChatMessage[] }>;
+  handleCommand: (input: string) => Promise<{ handled: boolean; messages: ChatMessage[] }>;
   /** 加载指定 session 的历史消息 */
   loadHistory: (sessionId: string) => Promise<ChatMessage[]>;
   /** 切换到新 session */
@@ -40,9 +36,7 @@ function systemMsg(content: string): ChatMessage {
 }
 
 export function useSession(storage: StorageService | null): UseSessionReturn {
-  const [currentSessionId, setCurrentSessionId] = useState<string>(
-    () => generateSessionId(),
-  );
+  const [currentSessionId, setCurrentSessionId] = useState<string>(() => generateSessionId());
 
   const loadHistory = useCallback(
     async (sessionId: string): Promise<ChatMessage[]> => {
@@ -52,10 +46,7 @@ export function useSession(storage: StorageService | null): UseSessionReturn {
         return history
           .filter((m) => m.role === "user" || m.role === "assistant")
           .map((m) => {
-            const content =
-              typeof m.content === "string"
-                ? m.content
-                : JSON.stringify(m.content);
+            const content = typeof m.content === "string" ? m.content : JSON.stringify(m.content);
             if (m.role === "user") {
               return {
                 id: crypto.randomUUID(),
@@ -82,9 +73,7 @@ export function useSession(storage: StorageService | null): UseSessionReturn {
   }, []);
 
   const handleCommand = useCallback(
-    async (
-      input: string,
-    ): Promise<{ handled: boolean; messages: ChatMessage[] }> => {
+    async (input: string): Promise<{ handled: boolean; messages: ChatMessage[] }> => {
       const parsed = parseCommand(input);
       if (!parsed) return { handled: false, messages: [] };
 
@@ -176,10 +165,8 @@ export function useSession(storage: StorageService | null): UseSessionReturn {
         }
 
         default: {
-          return {
-            handled: true,
-            messages: [systemMsg(`未知命令：/${command}。输入 /help 查看可用命令。`)],
-          };
+          // Forward unrecognized commands to Agent (may be a plugin slash command)
+          return { handled: false, messages: [] };
         }
       }
     },

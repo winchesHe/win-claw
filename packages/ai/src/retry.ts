@@ -48,9 +48,7 @@ export class RetryHandler {
   }
 
   /** Wrap a streaming call with retry logic */
-  async *executeStream<T>(
-    fn: () => AsyncIterable<T>,
-  ): AsyncIterable<T> {
+  async *executeStream<T>(fn: () => AsyncIterable<T>): AsyncIterable<T> {
     let lastError: unknown;
 
     for (let attempt = 0; attempt <= this.options.maxRetries; attempt++) {

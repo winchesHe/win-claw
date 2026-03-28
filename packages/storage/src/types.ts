@@ -36,20 +36,20 @@ export interface RememberOptions {
 /** recall() 选项 */
 export interface RecallOptions {
   topK?: number;
-  decayRate?: number;        // λ，默认 0.1
+  decayRate?: number; // λ，默认 0.1
   importanceWeight?: number; // w，默认 0.3
 }
 
 /** 遗忘策略 */
 export type ForgetStrategy =
-  | { type: 'importance'; threshold: number }
-  | { type: 'time'; olderThanMs: number }
-  | { type: 'capacity'; maxCount: number };
+  | { type: "importance"; threshold: number }
+  | { type: "time"; olderThanMs: number }
+  | { type: "capacity"; maxCount: number };
 
 /** rememberWorking() 选项 */
 export interface WorkingMemoryOptions {
-  ttl?: number;        // 毫秒，默认 3_600_000（1h）
-  capacity?: number;   // 每会话上限，默认 50
+  ttl?: number; // 毫秒，默认 3_600_000（1h）
+  capacity?: number; // 每会话上限，默认 50
   importance?: number; // [0,1]，默认 0.5
 }
 
@@ -59,15 +59,15 @@ export interface WorkingMemory {
   sessionId: string;
   content: string;
   createdAt: Date;
-  ttl: number;       // 毫秒
+  ttl: number; // 毫秒
   importance: number;
 }
 
 /** searchEpisodic() 选项 */
 export interface EpisodicSearchOptions {
-  topK?: number;       // 默认 5
-  sessionId?: string;  // 限定会话
-  role?: string;       // 限定角色（"user" | "assistant" | ...）
+  topK?: number; // 默认 5
+  sessionId?: string; // 限定会话
+  role?: string; // 限定角色（"user" | "assistant" | ...）
 }
 
 /** 情景记忆检索结果 */
@@ -77,7 +77,7 @@ export interface EpisodicMemory {
   role: string;
   content: string;
   createdAt: Date;
-  similarity: number;  // 余弦相似度，∈ [0, 1]
+  similarity: number; // 余弦相似度，∈ [0, 1]
 }
 
 /** 记忆摘要 */
@@ -88,11 +88,11 @@ export interface MemorySummary {
   };
   working: {
     count: number;
-    activeCount: number;  // created_at + ttl > now
+    activeCount: number; // created_at + ttl > now
   };
   episodic: {
     totalMessages: number;
-    vectorizedCount: number;  // vector IS NOT NULL
+    vectorizedCount: number; // vector IS NOT NULL
   };
 }
 
@@ -149,7 +149,11 @@ export interface StorageService {
   forget(strategy: ForgetStrategy): Promise<number>;
 
   // 工作记忆
-  rememberWorking(content: string, sessionId: string, options?: WorkingMemoryOptions): Promise<WorkingMemory>;
+  rememberWorking(
+    content: string,
+    sessionId: string,
+    options?: WorkingMemoryOptions,
+  ): Promise<WorkingMemory>;
   recallWorking(sessionId: string): Promise<WorkingMemory[]>;
 
   // 情景记忆
@@ -161,10 +165,7 @@ export interface StorageService {
   // 定时任务
   saveScheduledTask(task: ScheduledTask): Promise<void>;
   getPendingTasks(): Promise<ScheduledTask[]>;
-  updateTaskStatus(
-    id: string,
-    status: "completed" | "cancelled",
-  ): Promise<void>;
+  updateTaskStatus(id: string, status: "completed" | "cancelled"): Promise<void>;
 
   // 审计日志
   logToolExecution(
@@ -183,8 +184,5 @@ export interface StorageService {
   // 审批队列
   queueApproval(request: ApprovalRequest): Promise<string>;
   getApproval(id: string): Promise<ApprovalStatus>;
-  updateApprovalStatus(
-    id: string,
-    status: Exclude<ApprovalStatus, "pending">,
-  ): Promise<void>;
+  updateApprovalStatus(id: string, status: Exclude<ApprovalStatus, "pending">): Promise<void>;
 }

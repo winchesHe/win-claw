@@ -71,12 +71,8 @@ describe("AIClient", () => {
   });
 
   it("constructor throws for unknown provider", () => {
-    expect(
-      () => new AIClient({ ...baseConfig, provider: "unknown" }),
-    ).toThrow(AIError);
-    expect(
-      () => new AIClient({ ...baseConfig, provider: "unknown" }),
-    ).toThrow(/unknown/);
+    expect(() => new AIClient({ ...baseConfig, provider: "unknown" })).toThrow(AIError);
+    expect(() => new AIClient({ ...baseConfig, provider: "unknown" })).toThrow(/unknown/);
   });
 
   it("getCurrentProvider returns the current provider name", () => {
@@ -115,9 +111,7 @@ describe("AIClient", () => {
     const client = new AIClient(baseConfig);
     client.switchProvider("anthropic");
 
-    const response = await client.chat([
-      { role: "user", content: "hi" },
-    ]);
+    const response = await client.chat([{ role: "user", content: "hi" }]);
     expect(response.content).toBe("anthropic-response");
   });
 
@@ -126,9 +120,7 @@ describe("AIClient", () => {
     client.switchProvider("google");
 
     const chunks: ChatChunk[] = [];
-    for await (const chunk of client.chatStream([
-      { role: "user", content: "hi" },
-    ])) {
+    for await (const chunk of client.chatStream([{ role: "user", content: "hi" }])) {
       chunks.push(chunk);
     }
     expect(chunks[0].content).toBe("google-chunk");

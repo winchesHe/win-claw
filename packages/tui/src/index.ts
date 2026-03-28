@@ -17,6 +17,14 @@ import {
 import type { StorageService } from "@winches/storage";
 import type { LLMProvider } from "@winches/ai";
 import { Agent } from "@winches/agent";
+import {
+  createDefaultRegistry,
+  discoverPluginConfig,
+  validatePluginConfig,
+  McpClientManager,
+  SkillRegistry,
+} from "@winches/core";
+import type { PluginConfig } from "@winches/core";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -50,7 +58,9 @@ function loadDotEnv(): void {
         process.env[key] = val;
       }
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 function createNullStorage(): StorageService {
@@ -59,13 +69,30 @@ function createNullStorage(): StorageService {
     getHistory: async () => [],
     searchHistory: async () => [],
     listSessions: async () => [],
-    remember: async () => ({ id: "", content: "", tags: [], createdAt: new Date(), importance: 0.5 }),
+    remember: async () => ({
+      id: "",
+      content: "",
+      tags: [],
+      createdAt: new Date(),
+      importance: 0.5,
+    }),
     recall: async () => [],
     forget: async () => 0,
-    rememberWorking: async () => ({ id: "", sessionId: "", content: "", createdAt: new Date(), ttl: 0, importance: 0.5 }),
+    rememberWorking: async () => ({
+      id: "",
+      sessionId: "",
+      content: "",
+      createdAt: new Date(),
+      ttl: 0,
+      importance: 0.5,
+    }),
     recallWorking: async () => [],
     searchEpisodic: async () => [],
-    memorySummary: async () => ({ longTerm: { count: 0, avgImportance: 0 }, working: { count: 0, activeCount: 0 }, episodic: { totalMessages: 0, vectorizedCount: 0 } }),
+    memorySummary: async () => ({
+      longTerm: { count: 0, avgImportance: 0 },
+      working: { count: 0, activeCount: 0 },
+      episodic: { totalMessages: 0, vectorizedCount: 0 },
+    }),
     saveScheduledTask: async () => {},
     getPendingTasks: async () => [],
     updateTaskStatus: async () => {},
@@ -90,9 +117,7 @@ async function main() {
     if (err instanceof TuiConfigError) {
       process.stderr.write(`配置错误：${err.message}\n`);
     } else {
-      process.stderr.write(
-        `启动失败：${err instanceof Error ? err.message : String(err)}\n`,
-      );
+      process.stderr.write(`启动失败：${err instanceof Error ? err.message : String(err)}\n`);
     }
     process.exit(1);
   }
@@ -117,14 +142,13 @@ async function main() {
       const require = createRequire(import.meta.url);
       const storagePkgJson = require.resolve("@winches/storage/package.json");
       storagePkgDir = dirname(storagePkgJson);
-    } catch { /* fallback below */ }
+    } catch {
+      /* fallback below */
+    }
 
     const migrationPaths = [
       ...(storagePkgDir
-        ? [
-            resolve(storagePkgDir, "dist/migrations"),
-            resolve(storagePkgDir, "src/migrations"),
-          ]
+        ? [resolve(storagePkgDir, "dist/migrations"), resolve(storagePkgDir, "src/migrations")]
         : []),
       resolve(__dirname, "../../node_modules/@winches/storage/dist/migrations"),
       resolve(__dirname, "../../../storage/dist/migrations"),
@@ -140,7 +164,9 @@ async function main() {
         runner.run();
         migrationApplied = true;
         break;
-      } catch { /* try next */ }
+      } catch {
+        /* try next */
+      }
     }
 
     if (!migrationApplied) {
@@ -156,19 +182,23 @@ async function main() {
     );
   }
 
-  const { createDefaultRegistry } = await import("@winches/core");
   const registry = createDefaultRegistry();
 
   // 注册 memory 工具（需要 storage 实例）
   const activeStorage = storage ?? createNullStorage();
   registry.register({
     name: "memory-remember",
-    description: "Save a piece of information to long-term memory for future recall. Use this when the user explicitly asks you to remember something.",
+    description:
+      "Save a piece of information to long-term memory for future recall. Use this when the user explicitly asks you to remember something.",
     parameters: {
       type: "object",
       properties: {
         content: { type: "string", description: "The content to remember" },
-        tags: { type: "array", items: { type: "string" }, description: "Optional tags for categorization" },
+        tags: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional tags for categorization",
+        },
       },
       required: ["content"],
     },
@@ -182,7 +212,8 @@ async function main() {
 
   registry.register({
     name: "memory-recall",
-    description: "Search long-term memory for relevant information. Use this to retrieve previously remembered facts.",
+    description:
+      "Search long-term memory for relevant information. Use this to retrieve previously remembered facts.",
     parameters: {
       type: "object",
       properties: {
@@ -199,20 +230,51 @@ async function main() {
     },
   });
 
+  // Discover and load plugin config
+  let pluginConfig: PluginConfig = { mcpServers: [], skills: [], sourceSummary: [] };
+  try {
+    pluginConfig = await discoverPluginConfig({ configYamlPath: configPath });
+    const errors = validatePluginConfig(
+      { mcpServers: pluginConfig.mcpServers, skills: pluginConfig.skills },
+      "merged",
+    );
+    if (errors.length > 0) {
+      for (const err of errors) {
+        process.stderr.write(`Plugin config warning: [${err.path}] ${err.message}\n`);
+      }
+    }
+  } catch (err) {
+    process.stderr.write(
+      `Plugin config discovery failed: ${err instanceof Error ? err.message : String(err)}\n`,
+    );
+  }
+
+  // Connect MCP servers
+  const mcpClientManager = new McpClientManager();
+  if (pluginConfig.mcpServers.length > 0) {
+    await mcpClientManager.connectAll(pluginConfig.mcpServers, registry);
+  }
+
+  // Load skills
+  const skillRegistry = new SkillRegistry();
+  if (pluginConfig.skills.length > 0) {
+    await skillRegistry.loadAll(pluginConfig.skills);
+  }
+
   const sessionId = `session-${Date.now()}`;
   const agent = new Agent({
     provider: llmProvider,
     storage: activeStorage as unknown as StorageService,
-    registry: registry as never,
+    registry,
     sessionId,
+    skillRegistry,
+    mcpClientManager,
   });
 
-  render(React.createElement(App, { config, agent, storage }));
+  render(React.createElement(App, { config, agent, storage, skillRegistry }));
 }
 
 main().catch((err: unknown) => {
-  process.stderr.write(
-    `未处理的错误：${err instanceof Error ? err.message : String(err)}\n`,
-  );
+  process.stderr.write(`未处理的错误：${err instanceof Error ? err.message : String(err)}\n`);
   process.exit(1);
 });

@@ -39,11 +39,7 @@ export class ConfigError extends AIError {
 export class RetryExhaustedError extends AIError {
   public readonly attempts: number;
 
-  constructor(
-    message: string,
-    attempts: number,
-    options?: { cause?: unknown },
-  ) {
+  constructor(message: string, attempts: number, options?: { cause?: unknown }) {
     super(message, options);
     this.name = "RetryExhaustedError";
     this.attempts = attempts;

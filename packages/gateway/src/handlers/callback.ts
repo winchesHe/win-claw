@@ -13,7 +13,10 @@ export function createApprovalHandler(
 ): (request: ApprovalRequest) => Promise<boolean> {
   return async (request: ApprovalRequest): Promise<boolean> => {
     const approvalId = crypto.randomUUID();
-    logger.info({ approvalId, toolName: request.toolName, dangerLevel: request.dangerLevel }, "[approval] creating approval request");
+    logger.info(
+      { approvalId, toolName: request.toolName, dangerLevel: request.dangerLevel },
+      "[approval] creating approval request",
+    );
     const messageText = `🔐 需要审批\n工具：${request.toolName}\n危险等级：${request.dangerLevel}\n参数：${JSON.stringify(request.params, null, 2).slice(0, 300)}`;
 
     const msg = await ctx.reply(messageText, {
@@ -21,7 +24,10 @@ export function createApprovalHandler(
         .text("✅ 批准", `approve:${approvalId}`)
         .text("❌ 拒绝", `reject:${approvalId}`),
     });
-    logger.info({ approvalId, messageId: msg.message_id }, "[approval] sent approval message to Telegram, waiting for user response");
+    logger.info(
+      { approvalId, messageId: msg.message_id },
+      "[approval] sent approval message to Telegram, waiting for user response",
+    );
 
     return new Promise<boolean>((resolve) => {
       const timer = setTimeout(() => {
@@ -50,7 +56,10 @@ export function createApprovalHandler(
         timer,
         settled: false,
       });
-      logger.info({ approvalId, pendingCount: pendingApprovals.size }, "[approval] registered in pendingApprovals map");
+      logger.info(
+        { approvalId, pendingCount: pendingApprovals.size },
+        "[approval] registered in pendingApprovals map",
+      );
     });
   };
 }
@@ -79,10 +88,22 @@ export async function handleCallbackQuery(
   const approvalId = match[2];
 
   const pending = pendingApprovals.get(approvalId);
-  logger.info({ action, approvalId, found: !!pending, settled: pending?.settled, pendingKeys: [...pendingApprovals.keys()] }, "[callback] looking up pending approval");
+  logger.info(
+    {
+      action,
+      approvalId,
+      found: !!pending,
+      settled: pending?.settled,
+      pendingKeys: [...pendingApprovals.keys()],
+    },
+    "[callback] looking up pending approval",
+  );
 
   if (!pending || pending.settled) {
-    logger.warn({ approvalId, found: !!pending, settled: pending?.settled }, "[callback] approval not found or already settled");
+    logger.warn(
+      { approvalId, found: !!pending, settled: pending?.settled },
+      "[callback] approval not found or already settled",
+    );
     await ctx.answerCallbackQuery("该审批请求已超时");
     return;
   }
@@ -97,11 +118,7 @@ export async function handleCallbackQuery(
   logger.info({ approvalId }, "[callback] approval promise resolved");
 
   await ctx.api
-    .editMessageText(
-      pending.chatId,
-      pending.messageId,
-      approved ? "已批准 ✅" : "已拒绝 ❌",
-    )
+    .editMessageText(pending.chatId, pending.messageId, approved ? "已批准 ✅" : "已拒绝 ❌")
     .catch((err) => {
       logger.error({ err, approvalId }, "[callback] failed to edit approval message");
     });

@@ -24,11 +24,7 @@ export class ConfigError extends StorageError {
 export class MigrationError extends StorageError {
   public readonly scriptName: string;
 
-  constructor(
-    message: string,
-    scriptName: string,
-    options?: { cause?: unknown },
-  ) {
+  constructor(message: string, scriptName: string, options?: { cause?: unknown }) {
     super(message, "MIGRATION_ERROR", options);
     this.name = "MigrationError";
     this.scriptName = scriptName;
@@ -59,11 +55,7 @@ export class ApprovalNotFoundError extends StorageError {
   public readonly approvalId: string;
 
   constructor(approvalId: string, options?: { cause?: unknown }) {
-    super(
-      `Approval with id "${approvalId}" not found`,
-      "APPROVAL_NOT_FOUND",
-      options,
-    );
+    super(`Approval with id "${approvalId}" not found`, "APPROVAL_NOT_FOUND", options);
     this.name = "ApprovalNotFoundError";
     this.approvalId = approvalId;
   }
@@ -74,10 +66,7 @@ export class InvalidImportanceError extends StorageError {
   public readonly value: number;
 
   constructor(value: number) {
-    super(
-      `Importance value ${value} is out of range [0, 1]`,
-      "INVALID_IMPORTANCE",
-    );
+    super(`Importance value ${value} is out of range [0, 1]`, "INVALID_IMPORTANCE");
     this.name = "InvalidImportanceError";
     this.value = value;
   }
@@ -99,10 +88,7 @@ export class InvalidForgetOptionsError extends StorageError {
   public readonly missingField: string;
 
   constructor(missingField: string) {
-    super(
-      `forget() options missing required field: "${missingField}"`,
-      "INVALID_FORGET_OPTIONS",
-    );
+    super(`forget() options missing required field: "${missingField}"`, "INVALID_FORGET_OPTIONS");
     this.name = "InvalidForgetOptionsError";
     this.missingField = missingField;
   }

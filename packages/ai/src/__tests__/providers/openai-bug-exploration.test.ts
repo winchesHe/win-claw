@@ -14,11 +14,7 @@ import type { Message, ProviderConfig } from "../../types.js";
 vi.mock("openai", () => {
   const APIError = class extends Error {
     status?: number;
-    constructor(
-      status: number | undefined,
-      _error: unknown,
-      message: string,
-    ) {
+    constructor(status: number | undefined, _error: unknown, message: string) {
       super(message);
       this.status = status;
       this.name = "APIError";
@@ -60,9 +56,7 @@ describe("Bug Exploration — Assistant toolCalls lost in toOpenAIMessages", () 
       {
         role: "assistant",
         content: "",
-        toolCalls: [
-          { id: "call_1", name: "file.list", arguments: "{}" },
-        ],
+        toolCalls: [{ id: "call_1", name: "file.list", arguments: "{}" }],
       } as Message,
     ];
 

@@ -19,19 +19,14 @@ export class StorageConfigLoader {
     try {
       raw = readFileSync(filePath, "utf-8");
     } catch {
-      throw new ConfigError(
-        `Failed to read config file: ${filePath}`,
-        "filePath",
-      );
+      throw new ConfigError(`Failed to read config file: ${filePath}`, "filePath");
     }
 
     let parsed: unknown;
     try {
       parsed = parse(raw);
     } catch (err) {
-      throw new ConfigError(
-        `Failed to parse YAML: ${(err as Error).message}`,
-      );
+      throw new ConfigError(`Failed to parse YAML: ${(err as Error).message}`);
     }
 
     if (parsed === null || typeof parsed !== "object") {
@@ -126,17 +121,12 @@ export class StorageConfigLoader {
   /**
    * 验证必需配置项是否存在。
    */
-  static validate(
-    config: Partial<StorageConfig>,
-  ): asserts config is StorageConfig {
+  static validate(config: Partial<StorageConfig>): asserts config is StorageConfig {
     if (!config.dbPath) {
       throw new ConfigError("Missing required config field: dbPath", "dbPath");
     }
     if (!config.embedding) {
-      throw new ConfigError(
-        "Missing 'embedding' section in config file",
-        "embedding",
-      );
+      throw new ConfigError("Missing 'embedding' section in config file", "embedding");
     }
     if (!config.embedding.provider) {
       throw new ConfigError(
@@ -145,16 +135,10 @@ export class StorageConfigLoader {
       );
     }
     if (!config.embedding.model) {
-      throw new ConfigError(
-        "Missing required config field: embedding.model",
-        "embedding.model",
-      );
+      throw new ConfigError("Missing required config field: embedding.model", "embedding.model");
     }
     if (config.embedding.provider !== "local" && !config.embedding.apiKey) {
-      throw new ConfigError(
-        "Missing required config field: embedding.apiKey",
-        "embedding.apiKey",
-      );
+      throw new ConfigError("Missing required config field: embedding.apiKey", "embedding.apiKey");
     }
   }
 }

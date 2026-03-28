@@ -31,10 +31,7 @@ export class AIClient {
     this.registry.register("openai", (c) => new OpenAIProvider(c));
     this.registry.register("anthropic", (c) => new AnthropicProvider(c));
     this.registry.register("google", (c) => new GoogleProvider(c));
-    this.registry.register(
-      "openai-compatible",
-      (c) => new OpenAICompatibleProvider(c),
-    );
+    this.registry.register("openai-compatible", (c) => new OpenAICompatibleProvider(c));
 
     // 根据配置创建初始 Provider
     this.currentProvider = this.registry.create(config.provider, {
@@ -50,10 +47,7 @@ export class AIClient {
   }
 
   /** 流式聊天，委托给当前 Provider */
-  chatStream(
-    messages: Message[],
-    options?: ChatOptions,
-  ): AsyncIterable<ChatChunk> {
+  chatStream(messages: Message[], options?: ChatOptions): AsyncIterable<ChatChunk> {
     return this.currentProvider.chatStream(messages, options);
   }
 

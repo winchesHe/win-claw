@@ -11,15 +11,26 @@ function truncate(str: string, max: number): string {
   return str.slice(0, max) + `\n...(truncated, total ${str.length} chars)`;
 }
 
-function runCommand(command: string, timeoutMs: number): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+function runCommand(
+  command: string,
+  timeoutMs: number,
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   return new Promise((resolve) => {
-    const child = exec(command, { timeout: timeoutMs, maxBuffer: 1024 * 1024 }, (error, stdout, stderr) => {
-      resolve({
-        stdout: stdout ?? "",
-        stderr: stderr ?? "",
-        exitCode: error ? (error as NodeJS.ErrnoException & { code?: number }).code === undefined ? 1 : (error as { code: number }).code : 0,
-      });
-    });
+    const child = exec(
+      command,
+      { timeout: timeoutMs, maxBuffer: 1024 * 1024 },
+      (error, stdout, stderr) => {
+        resolve({
+          stdout: stdout ?? "",
+          stderr: stderr ?? "",
+          exitCode: error
+            ? (error as NodeJS.ErrnoException & { code?: number }).code === undefined
+              ? 1
+              : (error as { code: number }).code
+            : 0,
+        });
+      },
+    );
     // ensure we don't hang if child is somehow orphaned
     child.unref?.();
   });
@@ -46,7 +57,10 @@ export const shellTools: Tool[] = [
       logger.info({ command, timeoutMs }, "[shell] executing command");
       try {
         const { stdout, stderr, exitCode } = await runCommand(command, timeoutMs);
-        logger.info({ exitCode, stdoutLen: stdout.length, stderrLen: stderr.length }, "[shell] command completed");
+        logger.info(
+          { exitCode, stdoutLen: stdout.length, stderrLen: stderr.length },
+          "[shell] command completed",
+        );
         return {
           success: true,
           data: {

@@ -100,9 +100,7 @@ export function useAgent(agent: Agent): UseAgentReturn {
               if (event.type === "done") {
                 setMessages((prev) =>
                   prev.map((m) =>
-                    m.id === assistantId && m.type === "assistant"
-                      ? { ...m, streaming: false }
-                      : m,
+                    m.id === assistantId && m.type === "assistant" ? { ...m, streaming: false } : m,
                   ),
                 );
               }
@@ -139,13 +137,16 @@ export function useAgent(agent: Agent): UseAgentReturn {
     [agent, isRunning],
   );
 
-  const resolveApproval = useCallback((approved: boolean) => {
-    if (pendingApproval) {
-      const { resolve } = pendingApproval;
-      setPendingApproval(null);
-      resolve(approved);
-    }
-  }, [pendingApproval]);
+  const resolveApproval = useCallback(
+    (approved: boolean) => {
+      if (pendingApproval) {
+        const { resolve } = pendingApproval;
+        setPendingApproval(null);
+        resolve(approved);
+      }
+    },
+    [pendingApproval],
+  );
 
   return {
     messages,

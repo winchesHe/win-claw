@@ -1,28 +1,21 @@
 import pino from "pino";
 import type { Message } from "@winches/ai";
-import type { AgentConfig, AgentEvent, AgentStatus, ApprovalRequest } from "./types.js";
+import type {
+  AgentConfig,
+  AgentEvent,
+  AgentStatus,
+  ApprovalRequest,
+  ResolvedAgentConfig,
+} from "./types.js";
 import { AgentConfigError, AgentBusyError } from "./errors.js";
 import { conversationLoop } from "./loop.js";
-
-import os from "node:os";
+import { buildSystemPrompt } from "./prompt.js";
 
 const REQUIRED_FIELDS: (keyof AgentConfig)[] = ["provider", "storage", "registry", "sessionId"];
 const DEFAULT_MAX_ITERATIONS = 10;
-const DEFAULT_SYSTEM_PROMPT = `You are a helpful personal assistant with access to tools for file operations and shell commands. Use tools when needed to complete tasks. Always explain what you're doing before using a tool.
-
-The user's home directory is: ${os.homedir()}
-
-Important rules:
-- Available tools: file-read, file-write, file-delete, file-list, file-move, shell-exec.
-- When calling file-list, you MUST provide the "dirPath" parameter.
-- When calling file-read, you MUST provide the "filePath" parameter.
-- When calling shell-exec, you MUST provide the "command" parameter.
-- For searching files or directories by name, prefer shell-exec with "find" command. Example: {"command": "find ${os.homedir()} -maxdepth 4 -type d -name 'project-name' 2>/dev/null"}
-- Do NOT use shell-exec for long-running or interactive processes.
-- If a tool call fails, do NOT retry with the same parameters. Try a different approach.`;
 
 export class Agent {
-  private readonly config: Required<AgentConfig>;
+  private readonly config: ResolvedAgentConfig;
   private status: AgentStatus = "idle";
   private readonly logger = pino({ name: "@winches/agent" });
 
@@ -40,10 +33,19 @@ export class Agent {
       }
     }
 
+    const systemPrompt =
+      config.systemPrompt ??
+      buildSystemPrompt({
+        registry: config.registry,
+        skillRegistry: config.skillRegistry,
+      });
+
     this.config = {
       ...config,
-      systemPrompt: config.systemPrompt ?? DEFAULT_SYSTEM_PROMPT,
+      systemPrompt,
       maxIterations: config.maxIterations ?? DEFAULT_MAX_ITERATIONS,
+      skillRegistry: config.skillRegistry,
+      mcpClientManager: config.mcpClientManager,
     };
   }
 

@@ -19,7 +19,14 @@ import type {
   MemorySummary,
 } from "./types.js";
 import { EmbeddingService } from "./embedding.js";
-import { ApprovalNotFoundError, DuplicateTaskError, EmbeddingError, InvalidImportanceError, InvalidDecayRateError, InvalidForgetOptionsError } from "./errors.js";
+import {
+  ApprovalNotFoundError,
+  DuplicateTaskError,
+  EmbeddingError,
+  InvalidImportanceError,
+  InvalidDecayRateError,
+  InvalidForgetOptionsError,
+} from "./errors.js";
 
 interface ToolExecutionLogRow {
   id: string;
@@ -127,9 +134,7 @@ export class SqliteStorageService implements StorageService {
       .run(id, sessionId, message.role, content, toolCallId, toolCalls, createdAt);
 
     const textForEmbedding =
-      typeof message.content === "string"
-        ? message.content
-        : JSON.stringify(message.content);
+      typeof message.content === "string" ? message.content : JSON.stringify(message.content);
 
     void this.embedding
       .embed(textForEmbedding)
@@ -146,26 +151,20 @@ export class SqliteStorageService implements StorageService {
   async getHistory(sessionId: string, limit?: number): Promise<Message[]> {
     if (limit !== undefined) {
       const rows = this.db
-        .prepare(
-          "SELECT * FROM messages WHERE session_id = ? ORDER BY created_at DESC LIMIT ?",
-        )
+        .prepare("SELECT * FROM messages WHERE session_id = ? ORDER BY created_at DESC LIMIT ?")
         .all(sessionId, limit) as MessageRow[];
       return rows.reverse().map((row) => deserializeMessage(row));
     }
 
     const rows = this.db
-      .prepare(
-        "SELECT * FROM messages WHERE session_id = ? ORDER BY created_at ASC",
-      )
+      .prepare("SELECT * FROM messages WHERE session_id = ? ORDER BY created_at ASC")
       .all(sessionId) as MessageRow[];
     return rows.map((row) => deserializeMessage(row));
   }
 
   async searchHistory(query: string, topK = 5): Promise<Message[]> {
     const rows = this.db
-      .prepare(
-        "SELECT * FROM messages WHERE content LIKE ? ORDER BY created_at DESC LIMIT ?",
-      )
+      .prepare("SELECT * FROM messages WHERE content LIKE ? ORDER BY created_at DESC LIMIT ?")
       .all(`%${query}%`, topK) as MessageRow[];
     return rows.map((row) => deserializeMessage(row));
   }
@@ -320,44 +319,44 @@ export class SqliteStorageService implements StorageService {
 
   async forget(strategy: ForgetStrategy): Promise<number> {
     // Validate strategy fields before executing any deletes (Req 3.5)
-    if (strategy.type === 'importance') {
+    if (strategy.type === "importance") {
       if (strategy.threshold === undefined || strategy.threshold === null) {
-        throw new InvalidForgetOptionsError('threshold');
+        throw new InvalidForgetOptionsError("threshold");
       }
-    } else if (strategy.type === 'time') {
+    } else if (strategy.type === "time") {
       if (strategy.olderThanMs === undefined || strategy.olderThanMs === null) {
-        throw new InvalidForgetOptionsError('olderThanMs');
+        throw new InvalidForgetOptionsError("olderThanMs");
       }
-    } else if (strategy.type === 'capacity') {
+    } else if (strategy.type === "capacity") {
       if (strategy.maxCount === undefined || strategy.maxCount === null) {
-        throw new InvalidForgetOptionsError('maxCount');
+        throw new InvalidForgetOptionsError("maxCount");
       }
     } else {
-      throw new InvalidForgetOptionsError('type');
+      throw new InvalidForgetOptionsError("type");
     }
 
     // Execute all deletes atomically in a single transaction (Req 3.6)
     const runInTransaction = this.db.transaction(() => {
-      if (strategy.type === 'importance') {
+      if (strategy.type === "importance") {
         // Delete all memories where importance < threshold (Req 3.2)
         const result = this.db
-          .prepare('DELETE FROM memories WHERE importance < ?')
+          .prepare("DELETE FROM memories WHERE importance < ?")
           .run(strategy.threshold);
         return result.changes;
-      } else if (strategy.type === 'time') {
+      } else if (strategy.type === "time") {
         // Delete all memories where created_at < (now - olderThanMs) (Req 3.3)
         const cutoff = Date.now() - strategy.olderThanMs;
-        const result = this.db
-          .prepare('DELETE FROM memories WHERE created_at < ?')
-          .run(cutoff);
+        const result = this.db.prepare("DELETE FROM memories WHERE created_at < ?").run(cutoff);
         return result.changes;
       } else {
         // capacity strategy: keep top maxCount by retention_score, delete the rest (Req 3.4)
         // retention_score = importance × exp(-0.1 × age_in_days)
         const now = Date.now();
-        const rows = this.db
-          .prepare('SELECT id, importance, created_at FROM memories')
-          .all() as { id: string; importance: number; created_at: number }[];
+        const rows = this.db.prepare("SELECT id, importance, created_at FROM memories").all() as {
+          id: string;
+          importance: number;
+          created_at: number;
+        }[];
 
         if (rows.length <= strategy.maxCount) {
           return 0;
@@ -375,7 +374,7 @@ export class SqliteStorageService implements StorageService {
 
         if (toDelete.length === 0) return 0;
 
-        const placeholders = toDelete.map(() => '?').join(', ');
+        const placeholders = toDelete.map(() => "?").join(", ");
         const result = this.db
           .prepare(`DELETE FROM memories WHERE id IN (${placeholders})`)
           .run(...toDelete);
@@ -388,20 +387,24 @@ export class SqliteStorageService implements StorageService {
 
   // ===== 工作记忆 =====
 
-  async rememberWorking(content: string, sessionId: string, options?: WorkingMemoryOptions): Promise<WorkingMemory> {
+  async rememberWorking(
+    content: string,
+    sessionId: string,
+    options?: WorkingMemoryOptions,
+  ): Promise<WorkingMemory> {
     const ttl = options?.ttl ?? 3_600_000;
     const capacity = options?.capacity ?? 50;
     const importance = options?.importance ?? 0.5;
 
     // Check if at capacity; if so, evict the oldest entry for this session (Req 4.4, 4.7)
     const countRow = this.db
-      .prepare('SELECT COUNT(*) as count FROM working_memories WHERE session_id = ?')
+      .prepare("SELECT COUNT(*) as count FROM working_memories WHERE session_id = ?")
       .get(sessionId) as { count: number };
 
     if (countRow.count >= capacity) {
       this.db
         .prepare(
-          'DELETE FROM working_memories WHERE id = (SELECT id FROM working_memories WHERE session_id = ? ORDER BY created_at ASC LIMIT 1)',
+          "DELETE FROM working_memories WHERE id = (SELECT id FROM working_memories WHERE session_id = ? ORDER BY created_at ASC LIMIT 1)",
         )
         .run(sessionId);
     }
@@ -411,7 +414,7 @@ export class SqliteStorageService implements StorageService {
 
     this.db
       .prepare(
-        'INSERT INTO working_memories (id, session_id, content, created_at, ttl, importance) VALUES (?, ?, ?, ?, ?, ?)',
+        "INSERT INTO working_memories (id, session_id, content, created_at, ttl, importance) VALUES (?, ?, ?, ?, ?, ?)",
       )
       .run(id, sessionId, content, createdAt, ttl, importance);
 
@@ -431,16 +434,16 @@ export class SqliteStorageService implements StorageService {
     // Only return non-expired entries: created_at + ttl > now (Req 4.3)
     const rows = this.db
       .prepare(
-        'SELECT * FROM working_memories WHERE session_id = ? AND (created_at + ttl) > ? ORDER BY created_at ASC',
+        "SELECT * FROM working_memories WHERE session_id = ? AND (created_at + ttl) > ? ORDER BY created_at ASC",
       )
       .all(sessionId, now) as {
-        id: string;
-        session_id: string;
-        content: string;
-        created_at: number;
-        ttl: number;
-        importance: number;
-      }[];
+      id: string;
+      session_id: string;
+      content: string;
+      created_at: number;
+      ttl: number;
+      importance: number;
+    }[];
 
     return rows.map((row) => ({
       id: row.id,
@@ -479,13 +482,8 @@ export class SqliteStorageService implements StorageService {
     return rows.map((row) => deserializeTask(row));
   }
 
-  async updateTaskStatus(
-    id: string,
-    status: "completed" | "cancelled",
-  ): Promise<void> {
-    this.db
-      .prepare("UPDATE scheduled_tasks SET status = ? WHERE id = ?")
-      .run(status, id);
+  async updateTaskStatus(id: string, status: "completed" | "cancelled"): Promise<void> {
+    this.db.prepare("UPDATE scheduled_tasks SET status = ? WHERE id = ?").run(status, id);
   }
 
   // ===== 审计日志 =====
@@ -556,15 +554,23 @@ export class SqliteStorageService implements StorageService {
       .prepare(
         "INSERT INTO approval_requests (id, tool_name, params, danger_level, session_id, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
       )
-      .run(id, request.toolName, paramsJson, request.dangerLevel, request.sessionId ?? null, "pending", createdAt);
+      .run(
+        id,
+        request.toolName,
+        paramsJson,
+        request.dangerLevel,
+        request.sessionId ?? null,
+        "pending",
+        createdAt,
+      );
 
     return id;
   }
 
   async getApproval(id: string): Promise<ApprovalStatus> {
-    const row = this.db
-      .prepare("SELECT * FROM approval_requests WHERE id = ?")
-      .get(id) as ApprovalRow | undefined;
+    const row = this.db.prepare("SELECT * FROM approval_requests WHERE id = ?").get(id) as
+      | ApprovalRow
+      | undefined;
 
     if (!row) {
       throw new ApprovalNotFoundError(id);
@@ -577,9 +583,7 @@ export class SqliteStorageService implements StorageService {
     id: string,
     status: Exclude<ApprovalStatus, "pending">,
   ): Promise<void> {
-    this.db
-      .prepare("UPDATE approval_requests SET status = ? WHERE id = ?")
-      .run(status, id);
+    this.db.prepare("UPDATE approval_requests SET status = ? WHERE id = ?").run(status, id);
   }
 
   // ===== 记忆摘要 =====
@@ -587,15 +591,31 @@ export class SqliteStorageService implements StorageService {
   async memorySummary(): Promise<MemorySummary> {
     const now = Date.now();
 
-    const longTermCount = (this.db.prepare("SELECT COUNT(*) as count FROM memories").get() as { count: number }).count;
-    const avgImportanceRow = this.db.prepare("SELECT AVG(importance) as avg FROM memories").get() as { avg: number | null };
+    const longTermCount = (
+      this.db.prepare("SELECT COUNT(*) as count FROM memories").get() as { count: number }
+    ).count;
+    const avgImportanceRow = this.db
+      .prepare("SELECT AVG(importance) as avg FROM memories")
+      .get() as { avg: number | null };
     const avgImportance = avgImportanceRow.avg ?? 0;
 
-    const workingCount = (this.db.prepare("SELECT COUNT(*) as count FROM working_memories").get() as { count: number }).count;
-    const workingActiveCount = (this.db.prepare("SELECT COUNT(*) as count FROM working_memories WHERE created_at + ttl > ?").get(now) as { count: number }).count;
+    const workingCount = (
+      this.db.prepare("SELECT COUNT(*) as count FROM working_memories").get() as { count: number }
+    ).count;
+    const workingActiveCount = (
+      this.db
+        .prepare("SELECT COUNT(*) as count FROM working_memories WHERE created_at + ttl > ?")
+        .get(now) as { count: number }
+    ).count;
 
-    const totalMessages = (this.db.prepare("SELECT COUNT(*) as count FROM messages").get() as { count: number }).count;
-    const vectorizedCount = (this.db.prepare("SELECT COUNT(*) as count FROM messages WHERE vector IS NOT NULL").get() as { count: number }).count;
+    const totalMessages = (
+      this.db.prepare("SELECT COUNT(*) as count FROM messages").get() as { count: number }
+    ).count;
+    const vectorizedCount = (
+      this.db.prepare("SELECT COUNT(*) as count FROM messages WHERE vector IS NOT NULL").get() as {
+        count: number;
+      }
+    ).count;
 
     return {
       longTerm: { count: longTermCount, avgImportance },

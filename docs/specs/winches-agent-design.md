@@ -57,8 +57,8 @@ web-ui（依赖 storage，直接读数据库）
 interface Message {
   role: "system" | "user" | "assistant" | "tool";
   content: string | ContentPart[];
-  toolCallId?: string;       // tool 角色消息关联的 tool_call_id
-  toolCalls?: ToolCall[];    // assistant 角色消息携带的工具调用列表
+  toolCallId?: string; // tool 角色消息关联的 tool_call_id
+  toolCalls?: ToolCall[]; // assistant 角色消息携带的工具调用列表
 }
 
 interface LLMProvider {
@@ -179,15 +179,15 @@ interface ToolRegistry {
 
 ### 实现状态
 
-| 工具类别 | 状态 | 说明 |
-| -------- | ---- | ---- |
-| 文件操作（file.*） | ✅ 已实现 | 5 个工具全部可用 |
-| Shell 执行（shell.exec） | ✅ 已实现 | 带超时和输出截断 |
-| 浏览器控制（browser.*） | 🔲 Phase 4 | 已注册定义，execute 返回 "Not implemented" |
-| 网络请求（http.*） | 🔲 Phase 4 | 同上 |
-| 系统信息（system.*） | 🔲 Phase 4 | 同上 |
-| 剪贴板（clipboard.*） | 🔲 Phase 4 | 同上 |
-| 定时任务（scheduler.*） | 🔲 Phase 4 | 同上 |
+| 工具类别                 | 状态       | 说明                                       |
+| ------------------------ | ---------- | ------------------------------------------ |
+| 文件操作（file.\*）      | ✅ 已实现  | 5 个工具全部可用                           |
+| Shell 执行（shell.exec） | ✅ 已实现  | 带超时和输出截断                           |
+| 浏览器控制（browser.\*） | 🔲 Phase 4 | 已注册定义，execute 返回 "Not implemented" |
+| 网络请求（http.\*）      | 🔲 Phase 4 | 同上                                       |
+| 系统信息（system.\*）    | 🔲 Phase 4 | 同上                                       |
+| 剪贴板（clipboard.\*）   | 🔲 Phase 4 | 同上                                       |
+| 定时任务（scheduler.\*） | 🔲 Phase 4 | 同上                                       |
 
 > **注意**：Phase 4 工具的定义文件已存在于 `packages/core/src/tools/` 下，但未在 `createDefaultRegistry()` 中注册。宿主程序可按需手动注册。
 
@@ -195,10 +195,10 @@ interface ToolRegistry {
 
 TUI 在启动时额外注册了两个记忆工具（依赖 StorageService 实例）：
 
-| 工具 | 说明 | 权限 |
-| ---- | ---- | ---- |
+| 工具              | 说明               | 权限 |
+| ----------------- | ------------------ | ---- |
 | `memory-remember` | 保存信息到长期记忆 | safe |
-| `memory-recall` | 语义搜索长期记忆 | safe |
+| `memory-recall`   | 语义搜索长期记忆   | safe |
 
 > TUI 和 Gateway 均已注册这两个工具。
 
@@ -234,7 +234,11 @@ interface StorageService {
   forget(strategy: ForgetStrategy): Promise<number>;
 
   // 工作记忆（会话级，带 TTL 和容量限制）
-  rememberWorking(content: string, sessionId: string, options?: WorkingMemoryOptions): Promise<WorkingMemory>;
+  rememberWorking(
+    content: string,
+    sessionId: string,
+    options?: WorkingMemoryOptions,
+  ): Promise<WorkingMemory>;
   recallWorking(sessionId: string): Promise<WorkingMemory[]>;
 
   // 情景记忆（对话历史的语义搜索）
@@ -249,8 +253,18 @@ interface StorageService {
   updateTaskStatus(id: string, status: "completed" | "cancelled"): Promise<void>;
 
   // 审计日志
-  logToolExecution(toolName: string, input: unknown, output: unknown, durationMs: number, sessionId?: string): Promise<void>;
-  getToolExecutionLogs(filter?: { sessionId?: string; toolName?: string; limit?: number }): Promise<ToolExecutionLog[]>;
+  logToolExecution(
+    toolName: string,
+    input: unknown,
+    output: unknown,
+    durationMs: number,
+    sessionId?: string,
+  ): Promise<void>;
+  getToolExecutionLogs(filter?: {
+    sessionId?: string;
+    toolName?: string;
+    limit?: number;
+  }): Promise<ToolExecutionLog[]>;
 
   // 审批队列
   queueApproval(request: ApprovalRequest): Promise<string>;
@@ -263,11 +277,11 @@ interface StorageService {
 
 Storage 包实现了三层记忆系统：
 
-| 层级 | 类型 | 生命周期 | 检索方式 |
-| ---- | ---- | -------- | -------- |
-| 长期记忆 | `Memory` | 永久（可通过 forget 策略清理） | 向量相似度 × 时间衰减 × 重要性权重 |
-| 工作记忆 | `WorkingMemory` | 会话级，带 TTL（默认 1h） | 按会话 ID 查询，自动过期 |
-| 情景记忆 | `EpisodicMemory` | 随对话历史永久保存 | 对话消息的向量语义搜索 |
+| 层级     | 类型             | 生命周期                       | 检索方式                           |
+| -------- | ---------------- | ------------------------------ | ---------------------------------- |
+| 长期记忆 | `Memory`         | 永久（可通过 forget 策略清理） | 向量相似度 × 时间衰减 × 重要性权重 |
+| 工作记忆 | `WorkingMemory`  | 会话级，带 TTL（默认 1h）      | 按会话 ID 查询，自动过期           |
+| 情景记忆 | `EpisodicMemory` | 随对话历史永久保存             | 对话消息的向量语义搜索             |
 
 #### 长期记忆检索公式
 
@@ -283,9 +297,9 @@ composite_score = similarity × exp(-λ × age_days) × (1 + w × importance)
 
 ```typescript
 type ForgetStrategy =
-  | { type: 'importance'; threshold: number }   // 删除 importance < threshold 的记忆
-  | { type: 'time'; olderThanMs: number }        // 删除超过指定时间的记忆
-  | { type: 'capacity'; maxCount: number };      // 保留 retention_score 最高的 N 条
+  | { type: "importance"; threshold: number } // 删除 importance < threshold 的记忆
+  | { type: "time"; olderThanMs: number } // 删除超过指定时间的记忆
+  | { type: "capacity"; maxCount: number }; // 保留 retention_score 最高的 N 条
 ```
 
 ### 存储内容
@@ -324,8 +338,8 @@ interface AgentConfig {
   storage: StorageService;
   registry: ToolRegistry;
   sessionId: string;
-  systemPrompt?: string;     // 可选，有内置默认 prompt
-  maxIterations?: number;    // 工具调用循环上限，默认 10
+  systemPrompt?: string; // 可选，有内置默认 prompt
+  maxIterations?: number; // 工具调用循环上限，默认 10
 }
 
 class Agent {
@@ -582,9 +596,9 @@ pnpm start:web-ui    # 管理面板（未实现）
 
 ## 12. 已知偏差与 TODO
 
-| 项目 | 说明 | 优先级 |
-| ---- | ---- | ------ |
-| Bootstrap 代码重复 | TUI 和 Gateway 的 `index.ts` 有大量重复的初始化逻辑（findFile、loadDotEnv、createNullStorage、migration 路径查找），应提取到共享模块 | 高 |
-| shell.exec 权限级别 | 设计文档定义为 `dangerous`，实际实现为 `safe`（方便开发阶段使用），上线前需改回 | 中 |
-| Phase 4 工具 stub | 15 个工具有定义文件但未实现 execute，也未在 createDefaultRegistry 中注册 | 低（按计划） |
-| web-ui 空包 | `@winches/web-ui` 仅有空的 index.ts | 低（Phase 4） |
+| 项目                | 说明                                                                                                                                 | 优先级        |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| Bootstrap 代码重复  | TUI 和 Gateway 的 `index.ts` 有大量重复的初始化逻辑（findFile、loadDotEnv、createNullStorage、migration 路径查找），应提取到共享模块 | 高            |
+| shell.exec 权限级别 | 设计文档定义为 `dangerous`，实际实现为 `safe`（方便开发阶段使用），上线前需改回                                                      | 中            |
+| Phase 4 工具 stub   | 15 个工具有定义文件但未实现 execute，也未在 createDefaultRegistry 中注册                                                             | 低（按计划）  |
+| web-ui 空包         | `@winches/web-ui` 仅有空的 index.ts                                                                                                  | 低（Phase 4） |

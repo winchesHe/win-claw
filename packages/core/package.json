@@ -18,11 +18,13 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.28.0",
+    "@winches/ai": "workspace:*",
     "pino": "^9.0.0",
-    "@winches/ai": "workspace:*"
+    "yaml": "^2.8.3"
   },
   "devDependencies": {
-    "fast-check": "^3.0.0",
-    "@types/node": "^25.5.0"
+    "@types/node": "^25.5.0",
+    "fast-check": "^3.0.0"
   }
 }

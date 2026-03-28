@@ -17,19 +17,14 @@ export class ConfigLoader {
     try {
       raw = readFileSync(filePath, "utf-8");
     } catch {
-      throw new ConfigError(
-        `Failed to read config file: ${filePath}`,
-        "filePath",
-      );
+      throw new ConfigError(`Failed to read config file: ${filePath}`, "filePath");
     }
 
     let parsed: unknown;
     try {
       parsed = parse(raw);
     } catch (err) {
-      throw new ConfigError(
-        `Failed to parse YAML: ${(err as Error).message}`,
-      );
+      throw new ConfigError(`Failed to parse YAML: ${(err as Error).message}`);
     }
 
     if (
@@ -45,18 +40,12 @@ export class ConfigLoader {
     const llm = parsed.llm as Record<string, unknown>;
 
     const config: Partial<LLMConfig> = {
-      provider: typeof llm.provider === "string"
-        ? ConfigLoader.resolveEnvVars(llm.provider)
-        : undefined,
-      model: typeof llm.model === "string"
-        ? ConfigLoader.resolveEnvVars(llm.model)
-        : undefined,
-      apiKey: typeof llm.apiKey === "string"
-        ? ConfigLoader.resolveEnvVars(llm.apiKey)
-        : undefined,
-      baseUrl: typeof llm.baseUrl === "string"
-        ? ConfigLoader.resolveEnvVars(llm.baseUrl)
-        : undefined,
+      provider:
+        typeof llm.provider === "string" ? ConfigLoader.resolveEnvVars(llm.provider) : undefined,
+      model: typeof llm.model === "string" ? ConfigLoader.resolveEnvVars(llm.model) : undefined,
+      apiKey: typeof llm.apiKey === "string" ? ConfigLoader.resolveEnvVars(llm.apiKey) : undefined,
+      baseUrl:
+        typeof llm.baseUrl === "string" ? ConfigLoader.resolveEnvVars(llm.baseUrl) : undefined,
     };
 
     return ConfigLoader.applyEnvOverrides(config);
@@ -109,10 +98,7 @@ export class ConfigLoader {
     const required = ["provider", "model", "apiKey"] as const;
     for (const field of required) {
       if (!config[field]) {
-        throw new ConfigError(
-          `Missing required config field: ${field}`,
-          field,
-        );
+        throw new ConfigError(`Missing required config field: ${field}`, field);
       }
     }
   }

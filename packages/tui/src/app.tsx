@@ -1,10 +1,13 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Box, Text, useApp, useInput, useStdout } from "ink";
 import type { Agent } from "@winches/agent";
+import { getSlashCommandCompletions } from "@winches/agent";
 import type { StorageService } from "@winches/storage";
+import type { ISkillRegistry } from "@winches/core";
 import type { TuiConfig, ChatMessage } from "./types.js";
 import { MessageList } from "./components/MessageList.js";
 import { InputBox } from "./components/InputBox.js";
+import type { CompletionItem } from "./components/InputBox.js";
 import { ApprovalPrompt } from "./components/ApprovalPrompt.js";
 import { useAgent } from "./hooks/useAgent.js";
 import { useSession } from "./hooks/useSession.js";
@@ -13,9 +16,10 @@ interface AppProps {
   config: TuiConfig;
   agent: Agent;
   storage: StorageService | null;
+  skillRegistry?: ISkillRegistry;
 }
 
-export function App({ config, agent, storage }: AppProps) {
+export function App({ config, agent, storage, skillRegistry }: AppProps) {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const [confirmExit, setConfirmExit] = useState(false);
@@ -31,6 +35,26 @@ export function App({ config, agent, storage }: AppProps) {
   } = useAgent(agent);
 
   const { currentSessionId, handleCommand, loadHistory, switchSession } = useSession(storage);
+
+  // 合并 agent 层 slash command 补全和 session 层命令
+  const completions = useMemo((): CompletionItem[] => {
+    const items: CompletionItem[] = [];
+
+    // Agent 层：skills + builtin（/mcp-status, /skills）
+    if (skillRegistry) {
+      items.push(...getSlashCommandCompletions(skillRegistry));
+    }
+
+    // Session 层内置命令
+    items.push(
+      { command: "new", description: "创建新会话", type: "builtin" },
+      { command: "sessions", description: "列出历史会话", type: "builtin" },
+      { command: "switch", description: "切换到指定会话", type: "builtin" },
+      { command: "help", description: "显示帮助信息", type: "builtin" },
+    );
+
+    return items;
+  }, [skillRegistry]);
 
   // 启动时加载历史消息并显示欢迎信息
   useEffect(() => {
@@ -122,6 +146,7 @@ export function App({ config, agent, storage }: AppProps) {
           onSubmit={(value) => {
             void handleSubmit(value);
           }}
+          completions={completions}
         />
       )}
     </Box>

@@ -1,20 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type {
-  Message,
-  ToolDefinition,
-  ProviderConfig,
-  ChatChunk,
-} from "../../types.js";
+import type { Message, ToolDefinition, ProviderConfig, ChatChunk } from "../../types.js";
 
 // Mock the @anthropic-ai/sdk module before importing the provider
 vi.mock("@anthropic-ai/sdk", () => {
   const APIError = class extends Error {
     status?: number;
-    constructor(
-      status: number | undefined,
-      _error: unknown,
-      message: string,
-    ) {
+    constructor(status: number | undefined, _error: unknown, message: string) {
       super(message);
       this.status = status;
       this.name = "APIError";
@@ -92,31 +83,21 @@ describe("AnthropicProvider", () => {
     });
 
     it("should return undefined system when no system messages", () => {
-      const messages: Message[] = [
-        { role: "user", content: "Hello" },
-      ];
+      const messages: Message[] = [{ role: "user", content: "Hello" }];
       const result = provider.toAnthropicMessages(messages);
       expect(result.system).toBeUndefined();
     });
 
     it("should convert user message with string content", () => {
-      const messages: Message[] = [
-        { role: "user", content: "Hello" },
-      ];
+      const messages: Message[] = [{ role: "user", content: "Hello" }];
       const result = provider.toAnthropicMessages(messages);
-      expect(result.messages).toEqual([
-        { role: "user", content: "Hello" },
-      ]);
+      expect(result.messages).toEqual([{ role: "user", content: "Hello" }]);
     });
 
     it("should convert assistant message", () => {
-      const messages: Message[] = [
-        { role: "assistant", content: "Hi there" },
-      ];
+      const messages: Message[] = [{ role: "assistant", content: "Hi there" }];
       const result = provider.toAnthropicMessages(messages);
-      expect(result.messages).toEqual([
-        { role: "assistant", content: "Hi there" },
-      ]);
+      expect(result.messages).toEqual([{ role: "assistant", content: "Hi there" }]);
     });
 
     it("should convert tool message to user message with tool_result block", () => {
@@ -299,9 +280,7 @@ describe("AnthropicProvider", () => {
     it("should call Anthropic API and return ChatResponse", async () => {
       const client = getClient(provider);
       client.messages.create.mockResolvedValue({
-        content: [
-          { type: "text", text: "Hello!" },
-        ],
+        content: [{ type: "text", text: "Hello!" }],
         usage: {
           input_tokens: 10,
           output_tokens: 5,
@@ -309,9 +288,7 @@ describe("AnthropicProvider", () => {
         stop_reason: "end_turn",
       });
 
-      const result = await provider.chat([
-        { role: "user", content: "Hi" },
-      ]);
+      const result = await provider.chat([{ role: "user", content: "Hi" }]);
 
       expect(result.content).toBe("Hello!");
       expect(result.toolCalls).toBeUndefined();
@@ -365,10 +342,11 @@ describe("AnthropicProvider", () => {
         },
       ];
 
-      const result = await provider.chat(
-        [{ role: "user", content: "Weather?" }],
-        { tools, temperature: 0.5, maxTokens: 100 },
-      );
+      const result = await provider.chat([{ role: "user", content: "Weather?" }], {
+        tools,
+        temperature: 0.5,
+        maxTokens: 100,
+      });
 
       expect(result.toolCalls).toEqual([
         {
@@ -395,10 +373,9 @@ describe("AnthropicProvider", () => {
         usage: { input_tokens: 5, output_tokens: 2 },
       });
 
-      await provider.chat(
-        [{ role: "user", content: "test" }],
-        { model: "claude-3-haiku-20240307" },
-      );
+      await provider.chat([{ role: "user", content: "test" }], {
+        model: "claude-3-haiku-20240307",
+      });
 
       expect(client.messages.create).toHaveBeenCalledWith(
         expect.objectContaining({ model: "claude-3-haiku-20240307" }),
@@ -408,16 +385,10 @@ describe("AnthropicProvider", () => {
     it("should wrap Anthropic APIError into ProviderError", async () => {
       const client = getClient(provider);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const apiError = new (Anthropic as any).APIError(
-        401,
-        {},
-        "Unauthorized",
-      );
+      const apiError = new (Anthropic as any).APIError(401, {}, "Unauthorized");
       client.messages.create.mockRejectedValue(apiError);
 
-      await expect(
-        provider.chat([{ role: "user", content: "test" }]),
-      ).rejects.toMatchObject({
+      await expect(provider.chat([{ role: "user", content: "test" }])).rejects.toMatchObject({
         name: "ProviderError",
         provider: "anthropic",
         statusCode: 401,
@@ -439,9 +410,7 @@ describe("AnthropicProvider", () => {
         usage: { input_tokens: 15, output_tokens: 20 },
       });
 
-      const result = await provider.chat([
-        { role: "user", content: "What's the weather?" },
-      ]);
+      const result = await provider.chat([{ role: "user", content: "What's the weather?" }]);
 
       expect(result.content).toBe("Let me check the weather.");
       expect(result.toolCalls).toHaveLength(1);
@@ -481,9 +450,7 @@ describe("AnthropicProvider", () => {
       client.messages.create.mockResolvedValue(mockStream());
 
       const chunks: ChatChunk[] = [];
-      for await (const chunk of provider.chatStream([
-        { role: "user", content: "Hi" },
-      ])) {
+      for await (const chunk of provider.chatStream([{ role: "user", content: "Hi" }])) {
         chunks.push(chunk);
       }
 
@@ -536,9 +503,7 @@ describe("AnthropicProvider", () => {
       client.messages.create.mockResolvedValue(mockStream());
 
       const chunks: ChatChunk[] = [];
-      for await (const chunk of provider.chatStream([
-        { role: "user", content: "test" },
-      ])) {
+      for await (const chunk of provider.chatStream([{ role: "user", content: "test" }])) {
         chunks.push(chunk);
       }
 
@@ -585,9 +550,7 @@ describe("AnthropicProvider", () => {
       client.messages.create.mockResolvedValue(mockStream());
 
       const chunks: ChatChunk[] = [];
-      for await (const chunk of provider.chatStream([
-        { role: "user", content: "test" },
-      ])) {
+      for await (const chunk of provider.chatStream([{ role: "user", content: "test" }])) {
         chunks.push(chunk);
       }
 

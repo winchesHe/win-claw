@@ -15,8 +15,7 @@ import { RetryHandler } from "../retry.js";
 type AnthropicMessageParam = Anthropic.Messages.MessageParam;
 type AnthropicTool = Anthropic.Messages.Tool;
 type AnthropicContentBlock = Anthropic.Messages.ContentBlock;
-type AnthropicRawMessageStreamEvent =
-  Anthropic.Messages.RawMessageStreamEvent;
+type AnthropicRawMessageStreamEvent = Anthropic.Messages.RawMessageStreamEvent;
 
 export class AnthropicProvider implements LLMProvider {
   readonly name = "anthropic";
@@ -32,16 +31,10 @@ export class AnthropicProvider implements LLMProvider {
     this.retry = new RetryHandler();
   }
 
-  async chat(
-    messages: Message[],
-    options?: ChatOptions,
-  ): Promise<ChatResponse> {
+  async chat(messages: Message[], options?: ChatOptions): Promise<ChatResponse> {
     const model = options?.model ?? this.model;
-    const { system, messages: anthropicMessages } =
-      this.toAnthropicMessages(messages);
-    const tools = options?.tools
-      ? this.toAnthropicTools(options.tools)
-      : undefined;
+    const { system, messages: anthropicMessages } = this.toAnthropicMessages(messages);
+    const tools = options?.tools ? this.toAnthropicTools(options.tools) : undefined;
 
     return this.retry.execute(async () => {
       try {
@@ -57,10 +50,7 @@ export class AnthropicProvider implements LLMProvider {
 
         // Extract text content
         const textContent = response.content
-          .filter(
-            (block): block is Anthropic.Messages.TextBlock =>
-              block.type === "text",
-          )
+          .filter((block): block is Anthropic.Messages.TextBlock => block.type === "text")
           .map((block) => block.text)
           .join("");
 
@@ -73,8 +63,7 @@ export class AnthropicProvider implements LLMProvider {
           usage: {
             promptTokens: response.usage.input_tokens,
             completionTokens: response.usage.output_tokens,
-            totalTokens:
-              response.usage.input_tokens + response.usage.output_tokens,
+            totalTokens: response.usage.input_tokens + response.usage.output_tokens,
           },
         };
       } catch (error) {
@@ -83,64 +72,51 @@ export class AnthropicProvider implements LLMProvider {
     });
   }
 
-  async *chatStream(
-    messages: Message[],
-    options?: ChatOptions,
-  ): AsyncIterable<ChatChunk> {
+  async *chatStream(messages: Message[], options?: ChatOptions): AsyncIterable<ChatChunk> {
     const model = options?.model ?? this.model;
-    const { system, messages: anthropicMessages } =
-      this.toAnthropicMessages(messages);
-    const tools = options?.tools
-      ? this.toAnthropicTools(options.tools)
-      : undefined;
+    const { system, messages: anthropicMessages } = this.toAnthropicMessages(messages);
+    const tools = options?.tools ? this.toAnthropicTools(options.tools) : undefined;
 
-    const stream = this.retry.executeStream(async function* (
-      this: AnthropicProvider,
-    ) {
-      try {
-        const response = await this.client.messages.create({
-          model,
-          max_tokens: options?.maxTokens ?? 4096,
-          messages: anthropicMessages,
-          system: system ?? undefined,
-          tools: tools?.length ? tools : undefined,
-          temperature: options?.temperature ?? undefined,
-          stream: true,
-        });
+    const stream = this.retry.executeStream(
+      async function* (this: AnthropicProvider) {
+        try {
+          const response = await this.client.messages.create({
+            model,
+            max_tokens: options?.maxTokens ?? 4096,
+            messages: anthropicMessages,
+            system: system ?? undefined,
+            tools: tools?.length ? tools : undefined,
+            temperature: options?.temperature ?? undefined,
+            stream: true,
+          });
 
-        let currentToolId: string | undefined;
-        let currentToolName: string | undefined;
+          let currentToolId: string | undefined;
+          let currentToolName: string | undefined;
 
-        for await (const event of response as AsyncIterable<AnthropicRawMessageStreamEvent>) {
-          const chunk = this.processStreamEvent(
-            event,
-            currentToolId,
-            currentToolName,
-          );
+          for await (const event of response as AsyncIterable<AnthropicRawMessageStreamEvent>) {
+            const chunk = this.processStreamEvent(event, currentToolId, currentToolName);
 
-          // Track current tool use state for input_json_delta
-          if (
-            event.type === "content_block_start" &&
-            event.content_block.type === "tool_use"
-          ) {
-            currentToolId = event.content_block.id;
-            currentToolName = event.content_block.name;
-          }
-          if (event.type === "content_block_stop") {
-            currentToolId = undefined;
-            currentToolName = undefined;
+            // Track current tool use state for input_json_delta
+            if (event.type === "content_block_start" && event.content_block.type === "tool_use") {
+              currentToolId = event.content_block.id;
+              currentToolName = event.content_block.name;
+            }
+            if (event.type === "content_block_stop") {
+              currentToolId = undefined;
+              currentToolName = undefined;
+            }
+
+            if (chunk) {
+              yield chunk;
+            }
           }
 
-          if (chunk) {
-            yield chunk;
-          }
+          yield { done: true };
+        } catch (error) {
+          throw this.wrapError(error);
         }
-
-        yield { done: true };
-      } catch (error) {
-        throw this.wrapError(error);
-      }
-    }.bind(this));
+      }.bind(this),
+    );
 
     yield* stream;
   }
@@ -201,45 +177,40 @@ export class AnthropicProvider implements LLMProvider {
     const system = systemMessages.length
       ? systemMessages
           .map((m) =>
-            typeof m.content === "string"
-              ? m.content
-              : m.content.map((p) => p.text).join(""),
+            typeof m.content === "string" ? m.content : m.content.map((p) => p.text).join(""),
           )
           .join("\n")
       : undefined;
 
-    const anthropicMessages: AnthropicMessageParam[] = nonSystemMessages.map(
-      (msg) => {
-        if (msg.role === "tool") {
-          return {
-            role: "user" as const,
-            content: [
-              {
-                type: "tool_result" as const,
-                tool_use_id: msg.toolCallId ?? "",
-                content:
-                  typeof msg.content === "string"
-                    ? msg.content
-                    : msg.content.map((p) => p.text).join(""),
-              },
-            ],
-          };
-        }
+    const anthropicMessages: AnthropicMessageParam[] = nonSystemMessages.map((msg) => {
+      if (msg.role === "tool") {
+        return {
+          role: "user" as const,
+          content: [
+            {
+              type: "tool_result" as const,
+              tool_use_id: msg.toolCallId ?? "",
+              content:
+                typeof msg.content === "string"
+                  ? msg.content
+                  : msg.content.map((p) => p.text).join(""),
+            },
+          ],
+        };
+      }
 
-        const content =
-          typeof msg.content === "string"
-            ? msg.content
-            : msg.content.map((part) => ({
-                type: "text" as const,
-                text: part.text,
-              }));
+      const content =
+        typeof msg.content === "string"
+          ? msg.content
+          : msg.content.map((part) => ({
+              type: "text" as const,
+              text: part.text,
+            }));
 
-        const role: "user" | "assistant" =
-          msg.role === "assistant" ? "assistant" : "user";
+      const role: "user" | "assistant" = msg.role === "assistant" ? "assistant" : "user";
 
-        return { role, content };
-      },
-    );
+      return { role, content };
+    });
 
     return { system, messages: anthropicMessages };
   }
@@ -261,10 +232,7 @@ export class AnthropicProvider implements LLMProvider {
   /** Convert Anthropic tool_use content blocks to unified ToolCall[] */
   fromAnthropicToolUse(content: AnthropicContentBlock[]): ToolCall[] {
     return content
-      .filter(
-        (block): block is Anthropic.Messages.ToolUseBlock =>
-          block.type === "tool_use",
-      )
+      .filter((block): block is Anthropic.Messages.ToolUseBlock => block.type === "tool_use")
       .map((block) => ({
         id: block.id,
         name: block.name,
@@ -279,16 +247,12 @@ export class AnthropicProvider implements LLMProvider {
     }
 
     if (error instanceof Anthropic.APIError) {
-      return new ProviderError(
-        error.message,
-        this.name,
-        error.status ?? undefined,
-        { cause: error },
-      );
+      return new ProviderError(error.message, this.name, error.status ?? undefined, {
+        cause: error,
+      });
     }
 
-    const message =
-      error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error ? error.message : String(error);
     return new ProviderError(message, this.name, undefined, {
       cause: error,
     });

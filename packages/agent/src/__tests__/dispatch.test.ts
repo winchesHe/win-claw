@@ -57,10 +57,7 @@ describe("executeToolCall", () => {
     registry.register(tool);
 
     const ctx = makeCtx({ registry, onApprovalNeeded });
-    const result = await executeToolCall(
-      { id: "c1", name: "test.tool", arguments: "{}" },
-      ctx,
-    );
+    const result = await executeToolCall({ id: "c1", name: "test.tool", arguments: "{}" }, ctx);
 
     expect(onApprovalNeeded).not.toHaveBeenCalled();
     expect(tool.execute).toHaveBeenCalled();
@@ -75,10 +72,7 @@ describe("executeToolCall", () => {
     registry.register(tool);
 
     const ctx = makeCtx({ registry, onApprovalNeeded });
-    const result = await executeToolCall(
-      { id: "c2", name: "test.tool", arguments: "{}" },
-      ctx,
-    );
+    const result = await executeToolCall({ id: "c2", name: "test.tool", arguments: "{}" }, ctx);
 
     expect(onApprovalNeeded).toHaveBeenCalledOnce();
     expect(tool.execute).toHaveBeenCalled();
@@ -92,10 +86,7 @@ describe("executeToolCall", () => {
     registry.register(tool);
 
     const ctx = makeCtx({ registry, onApprovalNeeded });
-    const result = await executeToolCall(
-      { id: "c3", name: "test.tool", arguments: "{}" },
-      ctx,
-    );
+    const result = await executeToolCall({ id: "c3", name: "test.tool", arguments: "{}" }, ctx);
 
     expect(tool.execute).not.toHaveBeenCalled();
     expect(result.rejected).toBe(true);
@@ -140,10 +131,7 @@ describe("executeToolCall", () => {
     registry.register(tool);
 
     const ctx = makeCtx({ registry });
-    const result = await executeToolCall(
-      { id: "c6", name: "test.tool", arguments: "{}" },
-      ctx,
-    );
+    const result = await executeToolCall({ id: "c6", name: "test.tool", arguments: "{}" }, ctx);
 
     expect(result.rejected).toBe(false);
     expect(result.toolResult.success).toBe(false);

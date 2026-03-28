@@ -29,17 +29,13 @@ describe("ConfigLoader", () => {
 
     it("should keep ${VAR} when env var is not set", () => {
       delete process.env.NONEXISTENT_VAR;
-      expect(ConfigLoader.resolveEnvVars("${NONEXISTENT_VAR}")).toBe(
-        "${NONEXISTENT_VAR}",
-      );
+      expect(ConfigLoader.resolveEnvVars("${NONEXISTENT_VAR}")).toBe("${NONEXISTENT_VAR}");
     });
 
     it("should replace multiple env var references", () => {
       process.env.HOST = "localhost";
       process.env.PORT = "8080";
-      expect(ConfigLoader.resolveEnvVars("${HOST}:${PORT}")).toBe(
-        "localhost:8080",
-      );
+      expect(ConfigLoader.resolveEnvVars("${HOST}:${PORT}")).toBe("localhost:8080");
       delete process.env.HOST;
       delete process.env.PORT;
     });
@@ -174,9 +170,7 @@ describe("ConfigLoader", () => {
     });
 
     it("should throw ConfigError for missing file", () => {
-      expect(() => ConfigLoader.fromYAML("/nonexistent/path.yaml")).toThrow(
-        ConfigError,
-      );
+      expect(() => ConfigLoader.fromYAML("/nonexistent/path.yaml")).toThrow(ConfigError);
     });
 
     it("should throw ConfigError for invalid YAML", () => {

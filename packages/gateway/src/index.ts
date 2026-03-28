@@ -14,7 +14,14 @@ import {
 } from "@winches/storage";
 import type { StorageService } from "@winches/storage";
 import type { LLMProvider } from "@winches/ai";
-import { createDefaultRegistry } from "@winches/core";
+import {
+  createDefaultRegistry,
+  discoverPluginConfig,
+  validatePluginConfig,
+  McpClientManager,
+  SkillRegistry,
+} from "@winches/core";
+import type { PluginConfig } from "@winches/core";
 import pino from "pino";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -51,7 +58,9 @@ function loadDotEnv(): void {
         process.env[key] = val;
       }
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 function createNullStorage(): StorageService {
@@ -60,13 +69,30 @@ function createNullStorage(): StorageService {
     getHistory: async () => [],
     searchHistory: async () => [],
     listSessions: async () => [],
-    remember: async () => ({ id: "", content: "", tags: [], createdAt: new Date(), importance: 0.5 }),
+    remember: async () => ({
+      id: "",
+      content: "",
+      tags: [],
+      createdAt: new Date(),
+      importance: 0.5,
+    }),
     recall: async () => [],
     forget: async () => 0,
-    rememberWorking: async () => ({ id: "", sessionId: "", content: "", createdAt: new Date(), ttl: 0, importance: 0.5 }),
+    rememberWorking: async () => ({
+      id: "",
+      sessionId: "",
+      content: "",
+      createdAt: new Date(),
+      ttl: 0,
+      importance: 0.5,
+    }),
     recallWorking: async () => [],
     searchEpisodic: async () => [],
-    memorySummary: async () => ({ longTerm: { count: 0, avgImportance: 0 }, working: { count: 0, activeCount: 0 }, episodic: { totalMessages: 0, vectorizedCount: 0 } }),
+    memorySummary: async () => ({
+      longTerm: { count: 0, avgImportance: 0 },
+      working: { count: 0, activeCount: 0 },
+      episodic: { totalMessages: 0, vectorizedCount: 0 },
+    }),
     saveScheduledTask: async () => {},
     getPendingTasks: async () => [],
     updateTaskStatus: async () => {},
@@ -91,9 +117,7 @@ async function main() {
     if (err instanceof GatewayConfigError) {
       process.stderr.write(`配置错误：${err.message}\n`);
     } else {
-      process.stderr.write(
-        `启动失败：${err instanceof Error ? err.message : String(err)}\n`,
-      );
+      process.stderr.write(`启动失败：${err instanceof Error ? err.message : String(err)}\n`);
     }
     process.exit(1);
   }
@@ -118,14 +142,13 @@ async function main() {
       const require = createRequire(import.meta.url);
       const storagePkgJson = require.resolve("@winches/storage/package.json");
       storagePkgDir = dirname(storagePkgJson);
-    } catch { /* fallback below */ }
+    } catch {
+      /* fallback below */
+    }
 
     const migrationPaths = [
       ...(storagePkgDir
-        ? [
-            resolve(storagePkgDir, "dist/migrations"),
-            resolve(storagePkgDir, "src/migrations"),
-          ]
+        ? [resolve(storagePkgDir, "dist/migrations"), resolve(storagePkgDir, "src/migrations")]
         : []),
       resolve(__dirname, "../../node_modules/@winches/storage/dist/migrations"),
       resolve(__dirname, "../../../storage/dist/migrations"),
@@ -141,23 +164,19 @@ async function main() {
         runner.run();
         migrationApplied = true;
         break;
-      } catch { /* try next */ }
+      } catch {
+        /* try next */
+      }
     }
 
     if (!migrationApplied) {
-      logger.warn(
-        { paths: migrationPaths },
-        "未找到可用的数据库迁移目录，跳过迁移",
-      );
+      logger.warn({ paths: migrationPaths }, "未找到可用的数据库迁移目录，跳过迁移");
     }
 
     const noopEmbedding = { embed: async () => [] } as unknown as EmbeddingService;
     storage = new SqliteStorageService(db, noopEmbedding);
   } catch (err) {
-    logger.warn(
-      { err },
-      `存储服务初始化失败，将以无持久化模式运行`,
-    );
+    logger.warn({ err }, `存储服务初始化失败，将以无持久化模式运行`);
   }
 
   const registry = createDefaultRegistry();
@@ -167,12 +186,17 @@ async function main() {
   // 注册 memory 工具（与 TUI 保持一致）
   registry.register({
     name: "memory-remember",
-    description: "Save a piece of information to long-term memory for future recall. Use this when the user explicitly asks you to remember something.",
+    description:
+      "Save a piece of information to long-term memory for future recall. Use this when the user explicitly asks you to remember something.",
     parameters: {
       type: "object",
       properties: {
         content: { type: "string", description: "The content to remember" },
-        tags: { type: "array", items: { type: "string" }, description: "Optional tags for categorization" },
+        tags: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional tags for categorization",
+        },
       },
       required: ["content"],
     },
@@ -186,7 +210,8 @@ async function main() {
 
   registry.register({
     name: "memory-recall",
-    description: "Search long-term memory for relevant information. Use this to retrieve previously remembered facts.",
+    description:
+      "Search long-term memory for relevant information. Use this to retrieve previously remembered facts.",
     parameters: {
       type: "object",
       properties: {
@@ -203,19 +228,48 @@ async function main() {
     },
   });
 
+  // Discover and load plugin config
+  let pluginConfig: PluginConfig = { mcpServers: [], skills: [], sourceSummary: [] };
+  try {
+    pluginConfig = await discoverPluginConfig({ configYamlPath: configPath });
+    const errors = validatePluginConfig(
+      { mcpServers: pluginConfig.mcpServers, skills: pluginConfig.skills },
+      "merged",
+    );
+    if (errors.length > 0) {
+      for (const err of errors) {
+        logger.warn({ path: err.path, message: err.message }, "Plugin config warning");
+      }
+    }
+  } catch (err) {
+    logger.warn({ err }, `Plugin config discovery failed`);
+  }
+
+  // Connect MCP servers
+  const mcpClientManager = new McpClientManager();
+  if (pluginConfig.mcpServers.length > 0) {
+    await mcpClientManager.connectAll(pluginConfig.mcpServers, registry);
+  }
+
+  // Load skills
+  const skillRegistry = new SkillRegistry();
+  if (pluginConfig.skills.length > 0) {
+    await skillRegistry.loadAll(pluginConfig.skills);
+  }
+
   const bot = new GatewayBot(
     config,
     llmProvider,
     activeStorage,
-    registry as never,
+    registry,
+    skillRegistry,
+    mcpClientManager,
   );
 
   await bot.start();
 }
 
 main().catch((err: unknown) => {
-  process.stderr.write(
-    `未处理的错误：${err instanceof Error ? err.message : String(err)}\n`,
-  );
+  process.stderr.write(`未处理的错误：${err instanceof Error ? err.message : String(err)}\n`);
   process.exit(1);
 });

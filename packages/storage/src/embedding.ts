@@ -1,8 +1,4 @@
-import {
-  env,
-  pipeline,
-  type FeatureExtractionPipeline,
-} from "@huggingface/transformers";
+import { env, pipeline, type FeatureExtractionPipeline } from "@huggingface/transformers";
 import { resolve } from "node:path";
 import type { StorageConfig } from "./types.js";
 import { EmbeddingError } from "./errors.js";
@@ -24,18 +20,10 @@ class RemoteEmbeddingProvider implements EmbeddingProvider {
   private readonly apiKey: string;
   private readonly baseUrl: string;
 
-  constructor(config: {
-    model: string;
-    apiKey: string;
-    baseUrl?: string;
-    provider: string;
-  }) {
+  constructor(config: { model: string; apiKey: string; baseUrl?: string; provider: string }) {
     this.model = config.model;
     this.apiKey = config.apiKey;
-    this.baseUrl =
-      config.baseUrl ??
-      DEFAULT_BASE_URLS[config.provider] ??
-      "https://api.openai.com";
+    this.baseUrl = config.baseUrl ?? DEFAULT_BASE_URLS[config.provider] ?? "https://api.openai.com";
   }
 
   async embed(text: string): Promise<number[]> {
@@ -59,9 +47,7 @@ class RemoteEmbeddingProvider implements EmbeddingProvider {
 
     if (!response.ok) {
       const body = await response.text().catch(() => "");
-      throw new EmbeddingError(
-        `Embedding API returned ${response.status}: ${body}`,
-      );
+      throw new EmbeddingError(`Embedding API returned ${response.status}: ${body}`);
     }
 
     let json: unknown;
@@ -115,10 +101,7 @@ class LocalEmbeddingProvider implements EmbeddingProvider {
         })
         .catch((err) => {
           this.pipelinePromise = null;
-          throw new EmbeddingError(
-            "Failed to initialize embedding pipeline",
-            { cause: err },
-          );
+          throw new EmbeddingError("Failed to initialize embedding pipeline", { cause: err });
         });
     }
 

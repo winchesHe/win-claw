@@ -14,13 +14,19 @@ export interface Tool {
 }
 
 /** 工具执行结果（判别联合类型） */
-export type ToolResult =
-  | { success: true; data: unknown }
-  | { success: false; error: string };
+export type ToolResult = { success: true; data: unknown } | { success: false; error: string };
 
 /** 文件列表条目 */
 export interface FileEntry {
   name: string;
   type: "file" | "directory";
   size: number; // 字节数
+}
+
+/** ToolRegistry 公共接口（用于跨包类型兼容） */
+export interface IToolRegistry {
+  register(tool: Tool): void;
+  get(name: string): Tool | undefined;
+  list(): Tool[];
+  listByDangerLevel(level: DangerLevel): Tool[];
 }

@@ -94,8 +94,5 @@ export interface LLMProvider {
   readonly name: string;
 
   chat(messages: Message[], options?: ChatOptions): Promise<ChatResponse>;
-  chatStream(
-    messages: Message[],
-    options?: ChatOptions,
-  ): AsyncIterable<ChatChunk>;
+  chatStream(messages: Message[], options?: ChatOptions): AsyncIterable<ChatChunk>;
 }

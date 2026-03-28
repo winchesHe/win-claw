@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
-import pino from "pino";
 import { Agent } from "../agent.js";
 import { AgentConfigError, AgentBusyError } from "../errors.js";
 import { ToolRegistry } from "@winches/core";
 import type { LLMProvider, Message, ChatChunk } from "@winches/ai";
 import type { StorageService } from "@winches/storage";
+import type { AgentConfig } from "../types.js";
 
 // 创建 mock 依赖的辅助函数
 function makeMockProvider(chunks: ChatChunk[] = [{ content: "Hello!" }]): LLMProvider {
@@ -35,7 +35,7 @@ function makeMockStorage(): StorageService {
   } as unknown as StorageService;
 }
 
-function makeAgent(overrides?: Partial<Parameters<typeof Agent>[0]>) {
+function makeAgent(overrides?: Partial<AgentConfig>) {
   return new Agent({
     provider: makeMockProvider(),
     storage: makeMockStorage(),

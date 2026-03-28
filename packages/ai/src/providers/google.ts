@@ -1,7 +1,4 @@
-import {
-  GoogleGenerativeAI,
-  GoogleGenerativeAIFetchError,
-} from "@google/generative-ai";
+import { GoogleGenerativeAI, GoogleGenerativeAIFetchError } from "@google/generative-ai";
 import type {
   Content,
   Part,
@@ -35,15 +32,10 @@ export class GoogleProvider implements LLMProvider {
     this.retry = new RetryHandler();
   }
 
-  async chat(
-    messages: Message[],
-    options?: ChatOptions,
-  ): Promise<ChatResponse> {
+  async chat(messages: Message[], options?: ChatOptions): Promise<ChatResponse> {
     const modelName = options?.model ?? this.model;
     const { systemInstruction, contents } = this.toGeminiContents(messages);
-    const tools = options?.tools
-      ? this.toGeminiTools(options.tools)
-      : undefined;
+    const tools = options?.tools ? this.toGeminiTools(options.tools) : undefined;
 
     return this.retry.execute(async () => {
       try {
@@ -80,8 +72,7 @@ export class GoogleProvider implements LLMProvider {
           usage: response.usageMetadata
             ? {
                 promptTokens: response.usageMetadata.promptTokenCount ?? 0,
-                completionTokens:
-                  response.usageMetadata.candidatesTokenCount ?? 0,
+                completionTokens: response.usageMetadata.candidatesTokenCount ?? 0,
                 totalTokens: response.usageMetadata.totalTokenCount ?? 0,
               }
             : undefined,
@@ -92,66 +83,60 @@ export class GoogleProvider implements LLMProvider {
     });
   }
 
-  async *chatStream(
-    messages: Message[],
-    options?: ChatOptions,
-  ): AsyncIterable<ChatChunk> {
+  async *chatStream(messages: Message[], options?: ChatOptions): AsyncIterable<ChatChunk> {
     const modelName = options?.model ?? this.model;
     const { systemInstruction, contents } = this.toGeminiContents(messages);
-    const tools = options?.tools
-      ? this.toGeminiTools(options.tools)
-      : undefined;
+    const tools = options?.tools ? this.toGeminiTools(options.tools) : undefined;
 
-    const stream = this.retry.executeStream(async function* (
-      this: GoogleProvider,
-    ) {
-      try {
-        const model = this.client.getGenerativeModel({
-          model: modelName,
-          systemInstruction: systemInstruction ?? undefined,
-          generationConfig: {
-            temperature: options?.temperature ?? undefined,
-            maxOutputTokens: options?.maxTokens ?? undefined,
-          },
-        });
+    const stream = this.retry.executeStream(
+      async function* (this: GoogleProvider) {
+        try {
+          const model = this.client.getGenerativeModel({
+            model: modelName,
+            systemInstruction: systemInstruction ?? undefined,
+            generationConfig: {
+              temperature: options?.temperature ?? undefined,
+              maxOutputTokens: options?.maxTokens ?? undefined,
+            },
+          });
 
-        const result: GenerateContentStreamResult =
-          await model.generateContentStream({
+          const result: GenerateContentStreamResult = await model.generateContentStream({
             contents,
             tools: tools ? [tools] : undefined,
           });
 
-        for await (const chunk of result.stream) {
-          const candidate = chunk.candidates?.[0];
-          const parts = candidate?.content?.parts ?? [];
+          for await (const chunk of result.stream) {
+            const candidate = chunk.candidates?.[0];
+            const parts = candidate?.content?.parts ?? [];
 
-          const textContent = parts
-            .filter((p): p is Part & { text: string } => p.text != null)
-            .map((p) => p.text)
-            .join("");
+            const textContent = parts
+              .filter((p): p is Part & { text: string } => p.text != null)
+              .map((p) => p.text)
+              .join("");
 
-          const toolCalls = this.fromGeminiFunctionCalls(parts);
+            const toolCalls = this.fromGeminiFunctionCalls(parts);
 
-          const chatChunk: ChatChunk = {};
+            const chatChunk: ChatChunk = {};
 
-          if (textContent) {
-            chatChunk.content = textContent;
+            if (textContent) {
+              chatChunk.content = textContent;
+            }
+
+            if (toolCalls.length) {
+              chatChunk.toolCalls = toolCalls;
+            }
+
+            if (chatChunk.content || chatChunk.toolCalls) {
+              yield chatChunk;
+            }
           }
 
-          if (toolCalls.length) {
-            chatChunk.toolCalls = toolCalls;
-          }
-
-          if (chatChunk.content || chatChunk.toolCalls) {
-            yield chatChunk;
-          }
+          yield { done: true };
+        } catch (error) {
+          throw this.wrapError(error);
         }
-
-        yield { done: true };
-      } catch (error) {
-        throw this.wrapError(error);
-      }
-    }.bind(this));
+      }.bind(this),
+    );
 
     yield* stream;
   }
@@ -167,9 +152,7 @@ export class GoogleProvider implements LLMProvider {
     const systemInstruction = systemMessages.length
       ? systemMessages
           .map((m) =>
-            typeof m.content === "string"
-              ? m.content
-              : m.content.map((p) => p.text).join(""),
+            typeof m.content === "string" ? m.content : m.content.map((p) => p.text).join(""),
           )
           .join("\n")
       : undefined;
@@ -178,9 +161,7 @@ export class GoogleProvider implements LLMProvider {
       if (msg.role === "tool") {
         // Tool results are sent as functionResponse parts
         const responseContent =
-          typeof msg.content === "string"
-            ? msg.content
-            : msg.content.map((p) => p.text).join("");
+          typeof msg.content === "string" ? msg.content : msg.content.map((p) => p.text).join("");
 
         let responseObj: object;
         try {
@@ -248,16 +229,12 @@ export class GoogleProvider implements LLMProvider {
     }
 
     if (error instanceof GoogleGenerativeAIFetchError) {
-      return new ProviderError(
-        error.message,
-        this.name,
-        error.status ?? undefined,
-        { cause: error },
-      );
+      return new ProviderError(error.message, this.name, error.status ?? undefined, {
+        cause: error,
+      });
     }
 
-    const message =
-      error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error ? error.message : String(error);
     return new ProviderError(message, this.name, undefined, {
       cause: error,
     });

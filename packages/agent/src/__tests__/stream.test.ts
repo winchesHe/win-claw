@@ -21,11 +21,7 @@ async function consumeStream(stream: AsyncIterable<ChatChunk>) {
 
 describe("aggregateStream", () => {
   it("纯文本流：yield 文本增量，return 完整 content", async () => {
-    const chunks: ChatChunk[] = [
-      { content: "Hello" },
-      { content: ", " },
-      { content: "world!" },
-    ];
+    const chunks: ChatChunk[] = [{ content: "Hello" }, { content: ", " }, { content: "world!" }];
     const { textDeltas, aggregated } = await consumeStream(makeStream(chunks));
 
     expect(textDeltas).toEqual(["Hello", ", ", "world!"]);

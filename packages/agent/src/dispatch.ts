@@ -1,12 +1,12 @@
 import type { ToolCall } from "@winches/ai";
-import type { ToolRegistry, ToolResult } from "@winches/core";
+import type { IToolRegistry, ToolResult } from "@winches/core";
 import { restoreToolName } from "@winches/core";
 import type { StorageService } from "@winches/storage";
 import type { ApprovalRequest, AgentStatus } from "./types.js";
 import type pino from "pino";
 
 export interface DispatchContext {
-  registry: ToolRegistry;
+  registry: IToolRegistry;
   storage: StorageService;
   sessionId: string;
   setStatus: (status: AgentStatus) => void;
@@ -63,7 +63,10 @@ export async function executeToolCall(
     const p = params as Record<string, unknown>;
     if (p[field] === undefined || p[field] === null) {
       return {
-        toolResult: { success: false, error: `Missing required parameter "${field}" for tool "${toolCall.name}"` },
+        toolResult: {
+          success: false,
+          error: `Missing required parameter "${field}" for tool "${toolCall.name}"`,
+        },
         rejected: false,
       };
     }
@@ -79,7 +82,10 @@ export async function executeToolCall(
       dangerLevel: tool.dangerLevel,
     };
 
-    logger.info({ toolName: toolCall.name, dangerLevel: tool.dangerLevel }, "[dispatch] tool requires approval, requesting");
+    logger.info(
+      { toolName: toolCall.name, dangerLevel: tool.dangerLevel },
+      "[dispatch] tool requires approval, requesting",
+    );
     setStatus("waiting_approval");
 
     let approved = false;
@@ -88,7 +94,10 @@ export async function executeToolCall(
       approved = await onApprovalNeeded(request);
       logger.info({ toolName: toolCall.name, approved }, "[dispatch] onApprovalNeeded returned");
     } else {
-      logger.warn({ toolName: toolCall.name }, "[dispatch] no onApprovalNeeded callback registered");
+      logger.warn(
+        { toolName: toolCall.name },
+        "[dispatch] no onApprovalNeeded callback registered",
+      );
     }
 
     setStatus("running");
@@ -118,10 +127,15 @@ export async function executeToolCall(
   }
 
   const durationMs = Date.now() - startTime;
-  logger.info({ toolName: toolCall.name, success: toolResult.success, durationMs }, "[dispatch] tool execution completed");
-  await storage.logToolExecution(toolCall.name, params, toolResult, durationMs, sessionId).catch((err) => {
-    logger.warn({ err }, "failed to log tool execution");
-  });
+  logger.info(
+    { toolName: toolCall.name, success: toolResult.success, durationMs },
+    "[dispatch] tool execution completed",
+  );
+  await storage
+    .logToolExecution(toolCall.name, params, toolResult, durationMs, sessionId)
+    .catch((err) => {
+      logger.warn({ err }, "failed to log tool execution");
+    });
 
   return { toolResult, rejected: false };
 }

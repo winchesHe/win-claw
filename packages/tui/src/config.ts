@@ -50,22 +50,13 @@ export function loadConfig(configPath?: string): TuiConfig {
 
   // --- llm ---
   const llmSection =
-    doc.llm !== null && typeof doc.llm === "object"
-      ? (doc.llm as Record<string, unknown>)
-      : {};
+    doc.llm !== null && typeof doc.llm === "object" ? (doc.llm as Record<string, unknown>) : {};
 
   const llmProvider =
-    typeof llmSection.provider === "string"
-      ? resolveEnvVars(llmSection.provider)
-      : "";
+    typeof llmSection.provider === "string" ? resolveEnvVars(llmSection.provider) : "";
   const llmModel =
-    typeof llmSection.model === "string"
-      ? resolveEnvVars(llmSection.model)
-      : "gpt-4o";
-  const llmApiKey =
-    typeof llmSection.apiKey === "string"
-      ? resolveEnvVars(llmSection.apiKey)
-      : "";
+    typeof llmSection.model === "string" ? resolveEnvVars(llmSection.model) : "gpt-4o";
+  const llmApiKey = typeof llmSection.apiKey === "string" ? resolveEnvVars(llmSection.apiKey) : "";
   const llmBaseUrl =
     typeof llmSection.baseUrl === "string" && llmSection.baseUrl !== "null"
       ? resolveEnvVars(llmSection.baseUrl)
@@ -94,8 +85,7 @@ export function loadConfig(configPath?: string): TuiConfig {
 
   const approvalTimeout =
     typeof approvalSection.timeout === "number" ? approvalSection.timeout : 300;
-  const approvalDefaultAction =
-    approvalSection.defaultAction === "approve" ? "approve" : "reject";
+  const approvalDefaultAction = approvalSection.defaultAction === "approve" ? "approve" : "reject";
 
   // --- storage ---
   const storageSection =

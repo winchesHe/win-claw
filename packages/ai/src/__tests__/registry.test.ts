@@ -49,13 +49,11 @@ describe("ProviderRegistry", () => {
   it("should throw AIError with provider name for unregistered provider", () => {
     const registry = new ProviderRegistry();
 
-    expect(() =>
-      registry.create("nonexistent", { apiKey: "k", model: "m" }),
-    ).toThrow(AIError);
+    expect(() => registry.create("nonexistent", { apiKey: "k", model: "m" })).toThrow(AIError);
 
-    expect(() =>
-      registry.create("nonexistent", { apiKey: "k", model: "m" }),
-    ).toThrow(/nonexistent/);
+    expect(() => registry.create("nonexistent", { apiKey: "k", model: "m" })).toThrow(
+      /nonexistent/,
+    );
   });
 
   it("has() returns true for registered providers", () => {

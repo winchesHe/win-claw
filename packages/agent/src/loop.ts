@@ -1,16 +1,17 @@
 import type { Message, ChatChunk } from "@winches/ai";
-import type { AgentConfig, AgentEvent, AgentStatus, ApprovalRequest } from "./types.js";
+import type { AgentEvent, AgentStatus, ApprovalRequest, ResolvedAgentConfig } from "./types.js";
 import type pino from "pino";
 import { registryToToolDefinitions } from "@winches/core";
 import { buildMessages } from "./prompt.js";
 import { aggregateStream } from "./stream.js";
 import { executeToolCall } from "./dispatch.js";
+import { handleSlashCommand } from "./slash-commands.js";
 
 const RETRY_DELAYS_MS = [1000, 2000, 4000];
 
 export interface LoopContext {
   messages: Message[];
-  config: Required<AgentConfig>;
+  config: ResolvedAgentConfig;
   getStatus: () => AgentStatus;
   setStatus: (s: AgentStatus) => void;
   onApprovalNeeded: ((request: ApprovalRequest) => Promise<boolean>) | undefined;
@@ -24,6 +25,53 @@ export interface LoopContext {
 export async function* conversationLoop(ctx: LoopContext): AsyncGenerator<AgentEvent> {
   const { messages, config, logger } = ctx;
   const { provider, storage, registry, sessionId, systemPrompt, maxIterations } = config;
+
+  // 0. Slash Command 检测：如果用户消息以 / 开头且插件已配置，尝试处理
+  if (config.skillRegistry && config.mcpClientManager) {
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    const userText = lastUserMsg
+      ? typeof lastUserMsg.content === "string"
+        ? lastUserMsg.content
+        : ""
+      : "";
+
+    if (userText.startsWith("/")) {
+      const result = handleSlashCommand(userText, config.skillRegistry, config.mcpClientManager);
+
+      if (result.handled) {
+        // 直接响应（/mcp-status、/skills、未匹配命令）
+        if (result.directResponse) {
+          yield { type: "text", content: result.directResponse };
+          yield { type: "done" };
+          return;
+        }
+
+        // Skill 调用：注入 system 消息，替换用户消息为额外文本
+        if (result.systemMessage) {
+          const injectedMessages: Message[] = [];
+
+          // 消费原始 slash user 消息，避免递归再次命中同一命令。
+          // 只保留非 user 消息，以及 slash 命令后的纯文本参数（如有）。
+          injectedMessages.push(...messages.filter((m) => m.role !== "user"));
+          if (result.userMessage) {
+            injectedMessages.push({ role: "user", content: result.userMessage });
+          }
+
+          // 用注入了 Skill 提示词的 systemPrompt 继续对话循环
+          const skillSystemPrompt = `${systemPrompt}\n\n${result.systemMessage}`;
+          const skillMessages = injectedMessages;
+
+          // 递归调用自身，使用修改后的 config 和 messages
+          yield* conversationLoop({
+            ...ctx,
+            messages: skillMessages,
+            config: { ...config, systemPrompt: skillSystemPrompt },
+          });
+          return;
+        }
+      }
+    }
+  }
 
   // 1. 保存用户消息到 storage
   for (const msg of messages) {
@@ -127,10 +175,7 @@ export async function* conversationLoop(ctx: LoopContext): AsyncGenerator<AgentE
     await storage.saveMessage(sessionId, { role: "assistant", content: content || "", toolCalls });
 
     // 将 assistant 消息（含 toolCalls）追加到 loopMessages
-    loopMessages = [
-      ...loopMessages,
-      { role: "assistant", content: content || "", toolCalls },
-    ];
+    loopMessages = [...loopMessages, { role: "assistant", content: content || "", toolCalls }];
 
     // e. 工具调用时 yield tool_call 事件，调用 executeToolCall，yield tool_result 事件
     let allToolsFailed = true;

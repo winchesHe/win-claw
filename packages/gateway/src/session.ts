@@ -1,7 +1,7 @@
 import { Agent } from "@winches/agent";
 import type { LLMProvider } from "@winches/ai";
 import type { StorageService } from "@winches/storage";
-import type { ToolRegistry } from "@winches/core";
+import type { IToolRegistry, ISkillRegistry, IMcpClientManager } from "@winches/core";
 import type { ChatSession } from "./types.js";
 
 export class SessionManager {
@@ -10,7 +10,9 @@ export class SessionManager {
   constructor(
     private provider: LLMProvider,
     private storage: StorageService,
-    private registry: ToolRegistry,
+    private registry: IToolRegistry,
+    private skillRegistry?: ISkillRegistry,
+    private mcpClientManager?: IMcpClientManager,
   ) {}
 
   getOrCreate(chatId: number): ChatSession {
@@ -39,6 +41,8 @@ export class SessionManager {
       storage: this.storage,
       registry: this.registry,
       sessionId,
+      skillRegistry: this.skillRegistry,
+      mcpClientManager: this.mcpClientManager,
     });
     return {
       chatId,

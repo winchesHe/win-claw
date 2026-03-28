@@ -80,9 +80,7 @@ export class MigrationRunner {
       const applyMigration = this.db.transaction(() => {
         this.db.exec(sql);
         this.db
-          .prepare(
-            "INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)",
-          )
+          .prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)")
           .run(version, Date.now());
       });
 

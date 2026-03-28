@@ -17,11 +17,7 @@ import type { Message, ProviderConfig } from "../../types.js";
 vi.mock("openai", () => {
   const APIError = class extends Error {
     status?: number;
-    constructor(
-      status: number | undefined,
-      _error: unknown,
-      message: string,
-    ) {
+    constructor(status: number | undefined, _error: unknown, message: string) {
       super(message);
       this.status = status;
       this.name = "APIError";
@@ -67,26 +63,21 @@ describe("Preservation — toOpenAIMessages baseline behavior", () => {
    */
   it("should convert plain assistant messages without tool_calls field", async () => {
     fc.assert(
-      fc.property(
-        fc.string({ minLength: 0, maxLength: 200 }),
-        (content) => {
-          const messages: Message[] = [
-            { role: "assistant", content },
-          ];
+      fc.property(fc.string({ minLength: 0, maxLength: 200 }), (content) => {
+        const messages: Message[] = [{ role: "assistant", content }];
 
-          const result = provider.toOpenAIMessages(messages);
+        const result = provider.toOpenAIMessages(messages);
 
-          expect(result).toHaveLength(1);
-          expect(result[0].role).toBe("assistant");
+        expect(result).toHaveLength(1);
+        expect(result[0].role).toBe("assistant");
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const msg = result[0] as any;
-          expect(msg.content).toBe(content);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const msg = result[0] as any;
+        expect(msg.content).toBe(content);
 
-          // Plain assistant messages should NOT have tool_calls
-          expect(msg.tool_calls).toBeUndefined();
-        },
-      ),
+        // Plain assistant messages should NOT have tool_calls
+        expect(msg.tool_calls).toBeUndefined();
+      }),
       { numRuns: 100 },
     );
   });
@@ -107,9 +98,7 @@ describe("Preservation — toOpenAIMessages baseline behavior", () => {
           toolCallId: fc.stringMatching(/^call_[a-zA-Z0-9]{1,15}$/),
         }),
         ({ content, toolCallId }) => {
-          const messages: Message[] = [
-            { role: "tool", content, toolCallId },
-          ];
+          const messages: Message[] = [{ role: "tool", content, toolCallId }];
 
           const result = provider.toOpenAIMessages(messages);
 

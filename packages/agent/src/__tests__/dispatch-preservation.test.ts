@@ -131,23 +131,25 @@ describe("Preservation — executeToolCall baseline behavior", () => {
    */
   it("should return Invalid JSON arguments error for invalid JSON strings", async () => {
     // Generate strings that are definitely not valid JSON
-    const invalidJsonArb = fc.oneof(
-      // Strings that start with { but are malformed
-      fc.string({ minLength: 1 }).map((s) => `{${s}}`),
-      // Strings with unmatched brackets
-      fc.string({ minLength: 1 }).map((s) => `{${s}`),
-      // Plain words (not valid JSON)
-      fc.stringMatching(/^[a-zA-Z]{2,10}$/),
-      // Strings with trailing commas
-      fc.string().map((s) => `{"key": "${s}",}`),
-    ).filter((s) => {
-      try {
-        JSON.parse(s);
-        return false; // Exclude if it happens to be valid JSON
-      } catch {
-        return true; // Keep only truly invalid JSON
-      }
-    });
+    const invalidJsonArb = fc
+      .oneof(
+        // Strings that start with { but are malformed
+        fc.string({ minLength: 1 }).map((s) => `{${s}}`),
+        // Strings with unmatched brackets
+        fc.string({ minLength: 1 }).map((s) => `{${s}`),
+        // Plain words (not valid JSON)
+        fc.stringMatching(/^[a-zA-Z]{2,10}$/),
+        // Strings with trailing commas
+        fc.string().map((s) => `{"key": "${s}",}`),
+      )
+      .filter((s) => {
+        try {
+          JSON.parse(s);
+          return false; // Exclude if it happens to be valid JSON
+        } catch {
+          return true; // Keep only truly invalid JSON
+        }
+      });
 
     await fc.assert(
       fc.asyncProperty(

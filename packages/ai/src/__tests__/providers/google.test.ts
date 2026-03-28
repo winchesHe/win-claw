@@ -1,10 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type {
-  Message,
-  ToolDefinition,
-  ProviderConfig,
-  ChatChunk,
-} from "../../types.js";
+import type { Message, ToolDefinition, ProviderConfig, ChatChunk } from "../../types.js";
 
 // Mock the @google/generative-ai module before importing the provider
 const mockGenerateContent = vi.fn();
@@ -85,31 +80,21 @@ describe("GoogleProvider", () => {
     });
 
     it("should return undefined systemInstruction when no system messages", () => {
-      const messages: Message[] = [
-        { role: "user", content: "Hello" },
-      ];
+      const messages: Message[] = [{ role: "user", content: "Hello" }];
       const result = provider.toGeminiContents(messages);
       expect(result.systemInstruction).toBeUndefined();
     });
 
     it("should convert user message with string content to text parts", () => {
-      const messages: Message[] = [
-        { role: "user", content: "Hello" },
-      ];
+      const messages: Message[] = [{ role: "user", content: "Hello" }];
       const result = provider.toGeminiContents(messages);
-      expect(result.contents).toEqual([
-        { role: "user", parts: [{ text: "Hello" }] },
-      ]);
+      expect(result.contents).toEqual([{ role: "user", parts: [{ text: "Hello" }] }]);
     });
 
     it("should map assistant role to model", () => {
-      const messages: Message[] = [
-        { role: "assistant", content: "Hi there" },
-      ];
+      const messages: Message[] = [{ role: "assistant", content: "Hi there" }];
       const result = provider.toGeminiContents(messages);
-      expect(result.contents).toEqual([
-        { role: "model", parts: [{ text: "Hi there" }] },
-      ]);
+      expect(result.contents).toEqual([{ role: "model", parts: [{ text: "Hi there" }] }]);
     });
 
     it("should convert tool message to functionResponse part", () => {
@@ -161,9 +146,7 @@ describe("GoogleProvider", () => {
         },
       ];
       const result = provider.toGeminiContents(messages);
-      expect(result.contents).toEqual([
-        { role: "user", parts: [{ text: "Hello world" }] },
-      ]);
+      expect(result.contents).toEqual([{ role: "user", parts: [{ text: "Hello world" }] }]);
     });
 
     it("should handle empty messages array", () => {
@@ -269,10 +252,7 @@ describe("GoogleProvider", () => {
     });
 
     it("should filter out non-functionCall parts", () => {
-      const parts = [
-        { text: "Hello" },
-        { functionCall: { name: "fn_a", args: {} } },
-      ];
+      const parts = [{ text: "Hello" }, { functionCall: { name: "fn_a", args: {} } }];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = provider.fromGeminiFunctionCalls(parts as any);
       expect(result).toHaveLength(1);
@@ -299,9 +279,7 @@ describe("GoogleProvider", () => {
         },
       });
 
-      const result = await provider.chat([
-        { role: "user", content: "Hi" },
-      ]);
+      const result = await provider.chat([{ role: "user", content: "Hi" }]);
 
       expect(result.content).toBe("Hello!");
       expect(result.toolCalls).toBeUndefined();
@@ -315,9 +293,7 @@ describe("GoogleProvider", () => {
     it("should pass system message as systemInstruction on model", async () => {
       mockGenerateContent.mockResolvedValue({
         response: {
-          candidates: [
-            { content: { parts: [{ text: "ok" }] } },
-          ],
+          candidates: [{ content: { parts: [{ text: "ok" }] } }],
         },
       });
 
@@ -372,10 +348,11 @@ describe("GoogleProvider", () => {
         },
       ];
 
-      const result = await provider.chat(
-        [{ role: "user", content: "Weather?" }],
-        { tools, temperature: 0.5, maxTokens: 100 },
-      );
+      const result = await provider.chat([{ role: "user", content: "Weather?" }], {
+        tools,
+        temperature: 0.5,
+        maxTokens: 100,
+      });
 
       expect(result.toolCalls).toEqual([
         {
@@ -414,16 +391,11 @@ describe("GoogleProvider", () => {
     it("should use options.model when provided", async () => {
       mockGenerateContent.mockResolvedValue({
         response: {
-          candidates: [
-            { content: { parts: [{ text: "ok" }] } },
-          ],
+          candidates: [{ content: { parts: [{ text: "ok" }] } }],
         },
       });
 
-      await provider.chat(
-        [{ role: "user", content: "test" }],
-        { model: "gemini-1.5-pro" },
-      );
+      await provider.chat([{ role: "user", content: "test" }], { model: "gemini-1.5-pro" });
 
       expect(mockGetGenerativeModel).toHaveBeenCalledWith(
         expect.objectContaining({ model: "gemini-1.5-pro" }),
@@ -431,16 +403,10 @@ describe("GoogleProvider", () => {
     });
 
     it("should wrap GoogleGenerativeAIFetchError into ProviderError", async () => {
-      const fetchError = new GoogleGenerativeAIFetchError(
-        "Unauthorized",
-        401,
-        "Unauthorized",
-      );
+      const fetchError = new GoogleGenerativeAIFetchError("Unauthorized", 401, "Unauthorized");
       mockGenerateContent.mockRejectedValue(fetchError);
 
-      await expect(
-        provider.chat([{ role: "user", content: "test" }]),
-      ).rejects.toMatchObject({
+      await expect(provider.chat([{ role: "user", content: "test" }])).rejects.toMatchObject({
         name: "ProviderError",
         provider: "google",
         statusCode: 401,
@@ -468,9 +434,7 @@ describe("GoogleProvider", () => {
         },
       });
 
-      const result = await provider.chat([
-        { role: "user", content: "What's the weather?" },
-      ]);
+      const result = await provider.chat([{ role: "user", content: "What's the weather?" }]);
 
       expect(result.content).toBe("Let me check.");
       expect(result.toolCalls).toHaveLength(1);
@@ -482,14 +446,10 @@ describe("GoogleProvider", () => {
     it("should yield ChatChunks from streaming response", async () => {
       async function* mockStream() {
         yield {
-          candidates: [
-            { content: { parts: [{ text: "Hello" }] } },
-          ],
+          candidates: [{ content: { parts: [{ text: "Hello" }] } }],
         };
         yield {
-          candidates: [
-            { content: { parts: [{ text: " world" }] } },
-          ],
+          candidates: [{ content: { parts: [{ text: " world" }] } }],
         };
       }
 
@@ -498,9 +458,7 @@ describe("GoogleProvider", () => {
       });
 
       const chunks: ChatChunk[] = [];
-      for await (const chunk of provider.chatStream([
-        { role: "user", content: "Hi" },
-      ])) {
+      for await (const chunk of provider.chatStream([{ role: "user", content: "Hi" }])) {
         chunks.push(chunk);
       }
 
@@ -536,9 +494,7 @@ describe("GoogleProvider", () => {
       });
 
       const chunks: ChatChunk[] = [];
-      for await (const chunk of provider.chatStream([
-        { role: "user", content: "test" },
-      ])) {
+      for await (const chunk of provider.chatStream([{ role: "user", content: "test" }])) {
         chunks.push(chunk);
       }
 
@@ -551,9 +507,7 @@ describe("GoogleProvider", () => {
       async function* mockStream() {
         yield { candidates: [{ content: { parts: [] } }] };
         yield {
-          candidates: [
-            { content: { parts: [{ text: "data" }] } },
-          ],
+          candidates: [{ content: { parts: [{ text: "data" }] } }],
         };
         yield { candidates: [] };
       }
@@ -563,9 +517,7 @@ describe("GoogleProvider", () => {
       });
 
       const chunks: ChatChunk[] = [];
-      for await (const chunk of provider.chatStream([
-        { role: "user", content: "test" },
-      ])) {
+      for await (const chunk of provider.chatStream([{ role: "user", content: "test" }])) {
         chunks.push(chunk);
       }
 

@@ -5,11 +5,7 @@ import type { ProviderConfig } from "../../types.js";
 vi.mock("openai", () => {
   const APIError = class extends Error {
     status?: number;
-    constructor(
-      status: number | undefined,
-      _error: unknown,
-      message: string,
-    ) {
+    constructor(status: number | undefined, _error: unknown, message: string) {
       super(message);
       this.status = status;
       this.name = "APIError";

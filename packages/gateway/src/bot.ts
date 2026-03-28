@@ -2,7 +2,7 @@ import { Bot } from "grammy";
 import pino from "pino";
 import type { LLMProvider } from "@winches/ai";
 import type { StorageService } from "@winches/storage";
-import type { ToolRegistry } from "@winches/core";
+import type { IToolRegistry, ISkillRegistry, IMcpClientManager } from "@winches/core";
 import type { GatewayConfig, PendingApproval } from "./types.js";
 import { SessionManager } from "./session.js";
 import { handleMessage } from "./handlers/message.js";
@@ -20,10 +20,18 @@ export class GatewayBot {
     private config: GatewayConfig,
     provider: LLMProvider,
     storage: StorageService,
-    registry: ToolRegistry,
+    registry: IToolRegistry,
+    skillRegistry?: ISkillRegistry,
+    mcpClientManager?: IMcpClientManager,
   ) {
     this.bot = new Bot(config.telegram.botToken);
-    this.sessionManager = new SessionManager(provider, storage, registry);
+    this.sessionManager = new SessionManager(
+      provider,
+      storage,
+      registry,
+      skillRegistry,
+      mcpClientManager,
+    );
     this.pendingApprovals = new Map();
     this.logger = pino({ name: "@winches/gateway" });
   }
@@ -100,11 +108,7 @@ export class GatewayBot {
         pending.settled = true;
         clearTimeout(pending.timer);
         this.bot.api
-          .editMessageText(
-            pending.chatId,
-            pending.messageId,
-            "Bot 正在关闭，审批请求已自动拒绝 🔒",
-          )
+          .editMessageText(pending.chatId, pending.messageId, "Bot 正在关闭，审批请求已自动拒绝 🔒")
           .catch(() => {});
         pending.resolve(false);
       }
@@ -114,9 +118,7 @@ export class GatewayBot {
     // Wait for active agent requests to complete (up to timeoutMs)
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
-      const hasActive = this.sessionManager.all().some(
-        (s) => s.agent.getStatus() !== "idle",
-      );
+      const hasActive = this.sessionManager.all().some((s) => s.agent.getStatus() !== "idle");
       if (!hasActive) break;
       await new Promise((r) => setTimeout(r, 500));
     }

@@ -3,10 +3,11 @@ import pino from "pino";
 import { ToolRegistry } from "@winches/core";
 import { conversationLoop } from "../loop.js";
 import type { LoopContext } from "../loop.js";
-import type { LLMProvider, ChatChunk, Message } from "@winches/ai";
+import type { LLMProvider, ChatChunk } from "@winches/ai";
 import type { StorageService } from "@winches/storage";
-import type { AgentConfig } from "../types.js";
+import type { ResolvedAgentConfig } from "../types.js";
 import type { Tool } from "@winches/core";
+import type { ISkillRegistry, IMcpClientManager } from "@winches/core";
 
 const logger = pino({ level: "silent" });
 
@@ -41,8 +42,8 @@ function makeMockProvider(chunks: ChatChunk[] = [{ content: "Hello!" }]): LLMPro
 function makeConfig(
   provider: LLMProvider,
   registry: ToolRegistry = new ToolRegistry(),
-  overrides: Partial<Required<AgentConfig>> = {},
-): Required<AgentConfig> {
+  overrides: Partial<ResolvedAgentConfig> = {},
+): ResolvedAgentConfig {
   return {
     provider,
     storage: makeMockStorage(),
@@ -96,8 +97,91 @@ describe("conversationLoop — 纯文本回复", () => {
 
     const textEvents = events.filter((e) => e.type === "text");
     expect(textEvents.length).toBeGreaterThan(0);
-    const combined = textEvents.map((e) => (e as { type: "text"; content: string }).content).join("");
+    const combined = textEvents
+      .map((e) => (e as { type: "text"; content: string }).content)
+      .join("");
     expect(combined).toBe("Hi there");
+  });
+});
+
+describe("conversationLoop — slash skill", () => {
+  it("skill slash command 只注入一次，不会递归导致栈溢出", async () => {
+    const provider = makeMockProvider([{ content: "Generated AGENTS.md guidance" }]);
+
+    const skillRegistry: ISkillRegistry = {
+      get: vi.fn().mockReturnValue({
+        name: "create-agentsmd",
+        description: "Create an AGENTS.md file",
+        prompt: "You are helping create AGENTS.md.",
+        source: { ideType: "codex", path: "/tmp/skill", scope: "global" },
+      }),
+      list: vi.fn().mockReturnValue([]),
+      renderPrompt: vi.fn().mockReturnValue("You are helping create AGENTS.md."),
+    };
+
+    const mcpClientManager: IMcpClientManager = {
+      getStatus: vi.fn().mockReturnValue([]),
+    };
+
+    const ctx: LoopContext = {
+      messages: [{ role: "user", content: "/create-agentsmd" }],
+      config: makeConfig(provider, new ToolRegistry(), {
+        skillRegistry,
+        mcpClientManager,
+      }),
+      getStatus: () => "running",
+      setStatus: vi.fn(),
+      onApprovalNeeded: undefined,
+      logger,
+    };
+
+    const events = await collectEvents(ctx);
+
+    expect(events[events.length - 1]?.type).toBe("done");
+    expect(provider.chatStream).toHaveBeenCalledTimes(1);
+    expect(skillRegistry.renderPrompt).toHaveBeenCalledTimes(1);
+  });
+
+  it("无额外参数的 skill slash command 也会向 provider 发送一个 user message", async () => {
+    const provider = makeMockProvider([{ content: "Generated AGENTS.md guidance" }]);
+
+    const skillRegistry: ISkillRegistry = {
+      get: vi.fn().mockReturnValue({
+        name: "create-agentsmd",
+        description: "Create an AGENTS.md file",
+        prompt: "You are helping create AGENTS.md.",
+        source: { ideType: "codex", path: "/tmp/skill", scope: "global" },
+      }),
+      list: vi.fn().mockReturnValue([]),
+      renderPrompt: vi.fn().mockReturnValue("You are helping create AGENTS.md."),
+    };
+
+    const mcpClientManager: IMcpClientManager = {
+      getStatus: vi.fn().mockReturnValue([]),
+    };
+
+    const ctx: LoopContext = {
+      messages: [{ role: "user", content: "/create-agentsmd" }],
+      config: makeConfig(provider, new ToolRegistry(), {
+        skillRegistry,
+        mcpClientManager,
+      }),
+      getStatus: () => "running",
+      setStatus: vi.fn(),
+      onApprovalNeeded: undefined,
+      logger,
+    };
+
+    await collectEvents(ctx);
+
+    const firstCallArgs = vi.mocked(provider.chatStream).mock.calls[0]?.[0];
+    const nonSystemMessages = firstCallArgs?.filter((message) => message.role !== "system") ?? [];
+
+    expect(nonSystemMessages).toHaveLength(1);
+    expect(nonSystemMessages[0]).toMatchObject({
+      role: "user",
+      content: "Use the create-agentsmd skill for this request.",
+    });
   });
 });
 
