@@ -1,6 +1,6 @@
 # Winches Agent — 总体架构设计
 
-> 最后更新：2026-03-25
+> 最后更新：2026-03-28
 
 个人 7×24 小时 Agent 助手，支持本地文件操作、AI 驱动浏览器自动化、Telegram 接入。
 
@@ -179,8 +179,8 @@ interface ToolRegistry {
 
 ### 实现状态
 
-| 工具类别                 | 状态       | 说明                                       |
-| ------------------------ | ---------- | ------------------------------------------ |
+| 工具类别                 | 状态      | 说明                                       |
+| ------------------------ | --------- | ------------------------------------------ |
 | 文件操作（file.\*）      | ✅ 已实现  | 5 个工具全部可用                           |
 | Shell 执行（shell.exec） | ✅ 已实现  | 带超时和输出截断                           |
 | 浏览器控制（browser.\*） | 🔲 Phase 4 | 已注册定义，execute 返回 "Not implemented" |
@@ -338,8 +338,10 @@ interface AgentConfig {
   storage: StorageService;
   registry: ToolRegistry;
   sessionId: string;
-  systemPrompt?: string; // 可选，有内置默认 prompt
+  systemPrompt?: string; // 可选，未传时由 buildSystemPrompt() 动态生成
   maxIterations?: number; // 工具调用循环上限，默认 10
+  skillRegistry?: ISkillRegistry;
+  mcpClientManager?: IMcpClientManager;
 }
 
 class Agent {
@@ -365,29 +367,70 @@ type AgentEvent =
   | { type: "done" };
 ```
 
+### System Prompt 构建
+
+Agent 不再使用硬编码的默认 system prompt。当 `AgentConfig.systemPrompt` 未传入时，构造函数调用 `buildSystemPrompt(params)` 动态组装。
+
+#### `buildSystemPrompt` 参数
+
+```typescript
+interface SystemPromptParams {
+  registry: IToolRegistry;        // 工具注册表，用于生成工具列表
+  skillRegistry?: ISkillRegistry; // Skill 注册表（可选）
+  cwd?: string;                   // 工作目录（默认 process.cwd()）
+  homeDir?: string;               // 用户主目录（默认 os.homedir()）
+  workspaceGuidance?: string;     // 工作区引导说明
+  workspaceNotes?: string;        // 工作区备注
+  agentsMd?: string;              // AGENTS.md 内容
+  readToolName?: string;          // Skills 区块中引用的读取工具名（默认 "file-read"）
+  skillsPrompt?: string;          // Skills 原始 prompt
+}
+```
+
+#### 组装顺序
+
+System prompt 由以下区块按顺序拼接：
+
+| 序号 | 区块                 | 条件               | 内容                                                              |
+| ---- | -------------------- | ------------------ | ----------------------------------------------------------------- |
+| 1    | Identity             | 始终               | 身份声明、用户主目录                                              |
+| 2    | `## Tooling`         | 有工具时           | 按 dangerLevel 分组列出所有注册工具（safe → confirm → dangerous） |
+| 3    | `## Tool Call Style` | 始终               | 工具调用行为规范（先解释再调用、失败不重试、禁止长时进程等）      |
+| 4    | `## Skills`          | 有 skillsPrompt 时 | Skill 选择协议 + `<available_skills>` 列表                        |
+| 5    | `## Workspace`       | 始终               | 工作目录路径，可选的 guidance 和 notes                            |
+| 6    | `## Agents.md`       | 有内容时           | 项目级指导文档原文                                                |
+
+> **Tooling 区块**：工具名称通过 `sanitizeToolName()` 转换为 LLM 兼容格式（`file.read` → `file-read`），并附带 description。按权限级别分组展示，让 LLM 了解哪些工具可直接执行、哪些需要审批。
+
+> **宿主程序自定义**：宿主程序可传入自定义 `systemPrompt` 字符串完全覆盖默认行为，也可调用 `buildSystemPrompt()` 并传入 `workspaceGuidance`、`agentsMd` 等参数进行定制。
+
 ### 已实现的模块
 
-- `agent.ts`：Agent 类，管理状态和生命周期
-- `loop.ts`：对话循环实现（conversationLoop）
+- `agent.ts`：Agent 类，管理状态和生命周期，构造时调用 `buildSystemPrompt()` 生成默认 prompt
+- `loop.ts`：对话循环实现（conversationLoop），含 Slash Command 拦截和 Skill 注入
 - `dispatch.ts`：工具调度和权限检查
-- `prompt.ts`：Prompt 构建（system + 记忆 + 历史 + 工具定义）
-- `stream.ts`：流式响应解析
+- `prompt.ts`：`buildSystemPrompt()`（结构化 system prompt 组装）+ `buildMessages()`（system + 记忆 + 历史 + 当前消息拼接）
+- `stream.ts`：流式响应解析（aggregateStream）
+- `slash-commands.ts`：Slash Command 处理和补全（/skills、/mcp-status、Skill 调用）
 
 ### 对话循环
 
 ```
 用户消息
+→ Slash Command 检测（/ 开头时尝试匹配 skill 或内置命令）
+→ 保存用户消息到 storage
 → 检索相关记忆（storage.recall）
-→ 构建 prompt（system + 记忆 + 历史 + 工具定义）
-→ 调用 LLM（ai.chatStream）
+→ buildMessages(systemPrompt, memories, history, currentMessages)
+→ 调用 LLM（ai.chatStream + registryToToolDefinitions）
 → 解析响应
-  → 文本回复 → yield text event
+  → 文本回复 → yield text event → 保存 → 自动记忆用户消息
   → 工具调用 → 检查 dangerLevel
     → safe → 直接执行
     → confirm/dangerous → 调用 onApprovalNeeded 回调
       → approved → 执行
       → rejected → 告知 LLM 操作被拒绝
-    → 将工具结果喂回 LLM → 继续循环
+    → 将工具结果喂回 LLM → 继续循环（最多 maxIterations 轮）
+  → 连续工具调用全部失败 ≥ 2 次 → 提前中断
 ```
 
 ## 5. TUI 包 — 终端聊天界面
