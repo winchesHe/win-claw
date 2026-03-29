@@ -113,14 +113,18 @@ describe("conversationLoop — slash skill", () => {
         name: "create-agentsmd",
         description: "Create an AGENTS.md file",
         prompt: "You are helping create AGENTS.md.",
-        source: { ideType: "codex", path: "/tmp/skill", scope: "global" },
+        source: { ideType: "codex", path: "/tmp/skill/SKILL.md", scope: "global" },
       }),
       list: vi.fn().mockReturnValue([]),
-      renderPrompt: vi.fn().mockReturnValue("You are helping create AGENTS.md."),
+      renderContent: vi.fn(),
+      renderPrompt: vi.fn(),
+      loadAll: vi.fn().mockResolvedValue(undefined),
     };
 
     const mcpClientManager: IMcpClientManager = {
       getStatus: vi.fn().mockReturnValue([]),
+      connectAll: vi.fn().mockResolvedValue(undefined),
+      disconnectAll: vi.fn().mockResolvedValue(undefined),
     };
 
     const ctx: LoopContext = {
@@ -139,7 +143,16 @@ describe("conversationLoop — slash skill", () => {
 
     expect(events[events.length - 1]?.type).toBe("done");
     expect(provider.chatStream).toHaveBeenCalledTimes(1);
-    expect(skillRegistry.renderPrompt).toHaveBeenCalledTimes(1);
+    expect(skillRegistry.renderPrompt).not.toHaveBeenCalled();
+
+    const systemMessage = vi
+      .mocked(provider.chatStream)
+      .mock.calls[0]?.[0]
+      ?.find((message) => message.role === "system")?.content;
+
+    expect(systemMessage).toContain("The user explicitly selected the skill `create-agentsmd`.");
+    expect(systemMessage).toContain("Read the skill document at `/tmp/skill/SKILL.md` with `file-read`");
+    expect(systemMessage).not.toContain("You are helping create AGENTS.md.");
   });
 
   it("无额外参数的 skill slash command 也会向 provider 发送一个 user message", async () => {
@@ -150,14 +163,18 @@ describe("conversationLoop — slash skill", () => {
         name: "create-agentsmd",
         description: "Create an AGENTS.md file",
         prompt: "You are helping create AGENTS.md.",
-        source: { ideType: "codex", path: "/tmp/skill", scope: "global" },
+        source: { ideType: "codex", path: "/tmp/skill/SKILL.md", scope: "global" },
       }),
       list: vi.fn().mockReturnValue([]),
-      renderPrompt: vi.fn().mockReturnValue("You are helping create AGENTS.md."),
+      renderContent: vi.fn(),
+      renderPrompt: vi.fn(),
+      loadAll: vi.fn().mockResolvedValue(undefined),
     };
 
     const mcpClientManager: IMcpClientManager = {
       getStatus: vi.fn().mockReturnValue([]),
+      connectAll: vi.fn().mockResolvedValue(undefined),
+      disconnectAll: vi.fn().mockResolvedValue(undefined),
     };
 
     const ctx: LoopContext = {

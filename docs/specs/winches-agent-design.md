@@ -179,8 +179,8 @@ interface ToolRegistry {
 
 ### 实现状态
 
-| 工具类别                 | 状态      | 说明                                       |
-| ------------------------ | --------- | ------------------------------------------ |
+| 工具类别                 | 状态       | 说明                                       |
+| ------------------------ | ---------- | ------------------------------------------ |
 | 文件操作（file.\*）      | ✅ 已实现  | 5 个工具全部可用                           |
 | Shell 执行（shell.exec） | ✅ 已实现  | 带超时和输出截断                           |
 | 浏览器控制（browser.\*） | 🔲 Phase 4 | 已注册定义，execute 返回 "Not implemented" |
@@ -375,15 +375,15 @@ Agent 不再使用硬编码的默认 system prompt。当 `AgentConfig.systemProm
 
 ```typescript
 interface SystemPromptParams {
-  registry: IToolRegistry;        // 工具注册表，用于生成工具列表
+  registry: IToolRegistry; // 工具注册表，用于生成工具列表
   skillRegistry?: ISkillRegistry; // Skill 注册表（可选）
-  cwd?: string;                   // 工作目录（默认 process.cwd()）
-  homeDir?: string;               // 用户主目录（默认 os.homedir()）
-  workspaceGuidance?: string;     // 工作区引导说明
-  workspaceNotes?: string;        // 工作区备注
-  agentsMd?: string;              // AGENTS.md 内容
-  readToolName?: string;          // Skills 区块中引用的读取工具名（默认 "file-read"）
-  skillsPrompt?: string;          // Skills 原始 prompt
+  cwd?: string; // 工作目录（默认 process.cwd()）
+  homeDir?: string; // 用户主目录（默认 os.homedir()）
+  workspaceGuidance?: string; // 工作区引导说明
+  workspaceNotes?: string; // 工作区备注
+  agentsMd?: string; // AGENTS.md 内容
+  readToolName?: string; // Skills 区块中引用的读取工具名（默认 "file-read"）
+  skillsPrompt?: string; // Skills 索引元数据（如 <available_skills> 列表），不包含 Skill 正文
 }
 ```
 
@@ -396,28 +396,49 @@ System prompt 由以下区块按顺序拼接：
 | 1    | Identity             | 始终               | 身份声明、用户主目录                                              |
 | 2    | `## Tooling`         | 有工具时           | 按 dangerLevel 分组列出所有注册工具（safe → confirm → dangerous） |
 | 3    | `## Tool Call Style` | 始终               | 工具调用行为规范（先解释再调用、失败不重试、禁止长时进程等）      |
-| 4    | `## Skills`          | 有 skillsPrompt 时 | Skill 选择协议 + `<available_skills>` 列表                        |
+| 4    | `## Skills`          | 有 skillsPrompt 时 | Skill 选择协议 + `<available_skills>` 索引，指导 Agent 自行读取文档 |
 | 5    | `## Workspace`       | 始终               | 工作目录路径，可选的 guidance 和 notes                            |
 | 6    | `## Agents.md`       | 有内容时           | 项目级指导文档原文                                                |
 
 > **Tooling 区块**：工具名称通过 `sanitizeToolName()` 转换为 LLM 兼容格式（`file.read` → `file-read`），并附带 description。按权限级别分组展示，让 LLM 了解哪些工具可直接执行、哪些需要审批。
+
+> **Skills 区块语义**：`skillsPrompt` 仅提供 Skill 名称、描述、位置等索引信息，不内联 `SKILL.md` 正文。Agent 先根据 `<available_skills>` 选择最合适的 Skill，再使用读取工具（默认 `file-read`）主动读取对应 `SKILL.md`，随后结合用户请求执行任务。
+
+> **禁止事项**：不要把 `SKILL.md` 文件内容直接拼接进 system prompt，也不要把渲染后的 Skill 正文作为额外 system message 发送给 LLM。Skill 应被视为可按需读取的外部文档资源，而不是预注入提示词片段。
 
 > **宿主程序自定义**：宿主程序可传入自定义 `systemPrompt` 字符串完全覆盖默认行为，也可调用 `buildSystemPrompt()` 并传入 `workspaceGuidance`、`agentsMd` 等参数进行定制。
 
 ### 已实现的模块
 
 - `agent.ts`：Agent 类，管理状态和生命周期，构造时调用 `buildSystemPrompt()` 生成默认 prompt
-- `loop.ts`：对话循环实现（conversationLoop），含 Slash Command 拦截和 Skill 注入
+- `loop.ts`：对话循环实现（conversationLoop），含 Slash Command 拦截和 Skill 选择/读取指引注入
 - `dispatch.ts`：工具调度和权限检查
 - `prompt.ts`：`buildSystemPrompt()`（结构化 system prompt 组装）+ `buildMessages()`（system + 记忆 + 历史 + 当前消息拼接）
 - `stream.ts`：流式响应解析（aggregateStream）
 - `slash-commands.ts`：Slash Command 处理和补全（/skills、/mcp-status、Skill 调用）
+
+### Skill 模型与运行时语义
+
+- `SkillConfig.prompt` / `SkillConfig.promptFile` 是历史兼容字段，分别表示内联 Skill 文档内容和 Skill 文档路径。
+- 运行时 `Skill` 实例以 `content` 表示已加载的 Skill 文档正文；`prompt` 仅作为兼容别名保留。
+- `Skill.documentPath` 表示 Skill 文档路径；若 Skill 来自内联配置则可为空。
+- `ISkillRegistry.renderContent()` 用于在需要时对 Skill 文档内容做模板变量替换；`renderPrompt()` 为兼容旧调用方保留。
+- 新代码应优先使用 `content` / `documentPath` / `renderContent()`，避免继续强化“Skill = prompt 片段”的误解。
+
+### Slash Skill 执行约定
+
+- 当用户显式输入 `/skill-name` 时，Slash Command 层只注入一条“已选择该 Skill，请先读取指定 `SKILL.md`”的 system 指引。
+- Slash Command 层不会把 Skill 正文内联到 prompt 中，也不会在该路径调用 `renderPrompt()` / `renderContent()` 生成整段提示词。
+- 对于无参数调用，Agent 仍会收到一个 user message，例如 `Use the create-agentsmd skill for this request.`，以维持对话目标完整性。
+- 读取 `SKILL.md` 后，Agent 应根据文档内容和用户当前需求继续执行，而不是把 Skill 文档视为已经被上游预处理后的 prompt。
 
 ### 对话循环
 
 ```
 用户消息
 → Slash Command 检测（/ 开头时尝试匹配 skill 或内置命令）
+  → 内置命令（如 /skills、/mcp-status）→ 直接返回文本响应
+  → skill 命令（如 /create-agentsmd）→ 注入“读取 SKILL.md”指引，并将 slash 文本转换为普通 user 请求
 → 保存用户消息到 storage
 → 检索相关记忆（storage.recall）
 → buildMessages(systemPrompt, memories, history, currentMessages)

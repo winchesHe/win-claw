@@ -97,6 +97,10 @@ export async function* conversationLoop(ctx: LoopContext): AsyncGenerator<AgentE
 
   // 4. 构建初始 prompt
   let loopMessages = buildMessages(systemPrompt, memories, history, messages);
+  logger.debug(
+    { sessionId, iteration: 0, messageCount: loopMessages.length, messages: loopMessages },
+    "prompt_snapshot: initial buildMessages",
+  );
 
   // 5. 获取工具定义
   const toolDefinitions = registryToToolDefinitions(registry);
@@ -110,6 +114,10 @@ export async function* conversationLoop(ctx: LoopContext): AsyncGenerator<AgentE
     iterations++;
 
     // a. 带指数退避重试的 chatStream 调用（最多 3 次，间隔 1s/2s/4s）
+    logger.debug(
+      { sessionId, iteration: iterations, messageCount: loopMessages.length, messages: loopMessages },
+      "prompt_snapshot: before chatStream",
+    );
     let stream: AsyncIterable<ChatChunk> | undefined;
     let lastError: unknown;
 

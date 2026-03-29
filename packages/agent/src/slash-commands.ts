@@ -2,12 +2,23 @@ import type { Skill, McpServerStatus, ISkillRegistry, IMcpClientManager } from "
 
 export interface SlashCommandResult {
   handled: boolean;
-  /** 需要注入的 system 消息（Skill 提示词） */
+  /** 需要注入的 system 消息（Skill 选择/读取指引） */
   systemMessage?: string;
   /** 需要作为用户消息发送的文本 */
   userMessage?: string;
   /** 直接返回给用户的响应（如 /mcp-status、/skills） */
   directResponse?: string;
+}
+
+function buildSkillExecutionMessage(skill: Skill): string {
+  return [
+    "## Selected Skill",
+    `The user explicitly selected the skill \`${skill.name}\`.`,
+    `Description: ${skill.description}`,
+    `Read the skill document at \`${skill.source.path}\` with \`file-read\` before doing any substantive work.`,
+    "Do not treat the skill content as already provided in the prompt.",
+    "After reading it, follow the skill instructions and use the user's request as the task to complete.",
+  ].join("\n");
 }
 
 export interface SlashCommandCompletion {
@@ -73,10 +84,9 @@ export function handleSlashCommand(
 
   const skill = skillRegistry.get(command);
   if (skill) {
-    const renderedPrompt = skillRegistry.renderPrompt(command, { input: argsText });
     return {
       handled: true,
-      systemMessage: renderedPrompt,
+      systemMessage: buildSkillExecutionMessage(skill),
       userMessage: argsText || `Use the ${command} skill for this request.`,
     };
   }

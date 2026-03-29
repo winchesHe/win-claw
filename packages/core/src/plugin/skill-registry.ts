@@ -13,11 +13,13 @@ export class SkillRegistry {
   /** 批量加载 Skill 定义。promptFile 模式下读取文件内容。 */
   async loadAll(configs: SkillConfig[]): Promise<void> {
     for (const config of configs) {
-      let prompt: string;
+      let content: string;
+      let documentPath: string | undefined;
 
       if (config.promptFile) {
         try {
-          prompt = readFileSync(config.promptFile, "utf-8");
+          content = readFileSync(config.promptFile, "utf-8");
+          documentPath = config.promptFile;
         } catch (err) {
           logger.warn(
             { skill: config.name, promptFile: config.promptFile, error: String(err) },
@@ -26,7 +28,7 @@ export class SkillRegistry {
           continue;
         }
       } else if (config.prompt) {
-        prompt = config.prompt;
+        content = config.prompt;
       } else {
         logger.warn({ skill: config.name }, "Skill has neither prompt nor promptFile, skipping");
         continue;
@@ -35,7 +37,9 @@ export class SkillRegistry {
       const skill: Skill = {
         name: config.name,
         description: config.description,
-        prompt,
+        content,
+        prompt: content,
+        documentPath,
         source: config.source,
       };
 
@@ -54,7 +58,7 @@ export class SkillRegistry {
   }
 
   /**
-   * 渲染 Skill 提示词，替换模板变量。
+   * 渲染 Skill 文档内容，替换模板变量。
    *
    * 内置变量：
    * - {{cwd}} → process.cwd()
@@ -64,7 +68,7 @@ export class SkillRegistry {
    *
    * 未定义变量保留原始占位符，记录 debug 日志。
    */
-  renderPrompt(name: string, variables?: Record<string, string>): string | undefined {
+  renderContent(name: string, variables?: Record<string, string>): string | undefined {
     const skill = this.skills.get(name);
     if (!skill) return undefined;
 
@@ -76,7 +80,7 @@ export class SkillRegistry {
 
     const allVars = { ...builtins, ...variables };
 
-    return skill.prompt.replace(TEMPLATE_VAR_PATTERN, (match, varName: string) => {
+    return skill.content.replace(TEMPLATE_VAR_PATTERN, (match, varName: string) => {
       const value = allVars[varName];
       if (value !== undefined) return value;
       logger.debug(
@@ -85,5 +89,12 @@ export class SkillRegistry {
       );
       return match;
     });
+  }
+
+  /**
+   * 兼容旧接口。新代码应改用 renderContent。
+   */
+  renderPrompt(name: string, variables?: Record<string, string>): string | undefined {
+    return this.renderContent(name, variables);
   }
 }

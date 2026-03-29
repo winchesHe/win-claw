@@ -23,7 +23,9 @@ export interface McpServerConfig {
 export interface SkillConfig {
   name: string;
   description: string;
+  /** 内联的 Skill 文档内容。历史字段名沿用 prompt 以兼容现有配置。 */
   prompt?: string;
+  /** Skill 文档路径。历史字段名沿用 promptFile 以兼容现有配置。 */
   promptFile?: string;
   source: ConfigSource;
 }
@@ -36,11 +38,19 @@ export interface PluginConfig {
   sourceSummary: string[];
 }
 
-/** 已加载的 Skill 实例（prompt 已解析） */
+/** 已加载的 Skill 实例（文档内容已解析） */
 export interface Skill {
   name: string;
   description: string;
-  prompt: string;
+  /** Skill 文档的原始内容。 */
+  content: string;
+  /**
+   * 兼容字段，避免旧调用方直接读取 `skill.prompt` 时立刻断裂。
+   * 新代码应改用 `content`。
+   */
+  prompt?: string;
+  /** Skill 文档的绝对路径；若来自内联配置则为空。 */
+  documentPath?: string;
   source: ConfigSource;
 }
 
@@ -75,6 +85,7 @@ export interface ISkillRegistry {
   loadAll(configs: SkillConfig[]): Promise<void>;
   get(name: string): Skill | undefined;
   list(): Skill[];
+  renderContent(name: string, variables?: Record<string, string>): string | undefined;
   renderPrompt(name: string, variables?: Record<string, string>): string | undefined;
 }
 

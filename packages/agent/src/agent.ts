@@ -17,7 +17,7 @@ const DEFAULT_MAX_ITERATIONS = 10;
 export class Agent {
   private readonly config: ResolvedAgentConfig;
   private status: AgentStatus = "idle";
-  private readonly logger = pino({ name: "@winches/agent" });
+  private readonly logger: pino.Logger;
 
   /**
    * 审批回调，由宿主程序注册。
@@ -32,6 +32,8 @@ export class Agent {
         throw new AgentConfigError(field);
       }
     }
+
+    this.logger = config.logger ?? pino({ name: "@winches/agent" });
 
     const systemPrompt =
       config.systemPrompt ??

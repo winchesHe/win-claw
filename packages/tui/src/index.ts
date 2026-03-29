@@ -25,6 +25,7 @@ import {
   SkillRegistry,
 } from "@winches/core";
 import type { PluginConfig } from "@winches/core";
+import { createFileLogger } from "./logger.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -65,7 +66,7 @@ function loadDotEnv(): void {
 
 function createNullStorage(): StorageService {
   return {
-    saveMessage: async () => {},
+    saveMessage: async () => { },
     getHistory: async () => [],
     searchHistory: async () => [],
     listSessions: async () => [],
@@ -93,14 +94,14 @@ function createNullStorage(): StorageService {
       working: { count: 0, activeCount: 0 },
       episodic: { totalMessages: 0, vectorizedCount: 0 },
     }),
-    saveScheduledTask: async () => {},
+    saveScheduledTask: async () => { },
     getPendingTasks: async () => [],
-    updateTaskStatus: async () => {},
-    logToolExecution: async () => {},
+    updateTaskStatus: async () => { },
+    logToolExecution: async () => { },
     getToolExecutionLogs: async () => [],
     queueApproval: async () => "",
     getApproval: async () => "pending" as const,
-    updateApprovalStatus: async () => {},
+    updateApprovalStatus: async () => { },
   };
 }
 
@@ -109,6 +110,7 @@ async function main() {
   loadDotEnv();
 
   const configPath = findFile("config.yaml") ?? resolve(process.cwd(), "config.yaml");
+  const rootDir = dirname(configPath);
 
   let config;
   try {
@@ -121,6 +123,8 @@ async function main() {
     }
     process.exit(1);
   }
+
+  const logger = createFileLogger("@winches/tui", rootDir, config.logging.level);
 
   const aiClient = createAIClient({
     provider: config.llm.provider,
@@ -176,7 +180,9 @@ async function main() {
     }
     const embedding = new EmbeddingService(storageConfig.embedding);
     storage = new SqliteStorageService(db, embedding);
+    logger.info({ dbPath: storageConfig.dbPath }, "TUI storage initialized");
   } catch (err) {
+    logger.warn({ err }, "TUI storage initialization failed, falling back to null storage");
     process.stderr.write(
       `警告：存储服务初始化失败，将以无持久化模式运行。原因：${err instanceof Error ? err.message : String(err)}\n`,
     );
@@ -244,6 +250,7 @@ async function main() {
       }
     }
   } catch (err) {
+    logger.warn({ err }, "Plugin config discovery failed in TUI");
     process.stderr.write(
       `Plugin config discovery failed: ${err instanceof Error ? err.message : String(err)}\n`,
     );
@@ -262,6 +269,7 @@ async function main() {
   }
 
   const sessionId = `session-${Date.now()}`;
+  logger.info({ sessionId }, "Starting Winches Agent TUI session");
   const agent = new Agent({
     provider: llmProvider,
     storage: activeStorage as unknown as StorageService,
@@ -269,6 +277,7 @@ async function main() {
     sessionId,
     skillRegistry,
     mcpClientManager,
+    logger,
   });
 
   render(React.createElement(App, { config, agent, storage, skillRegistry }));

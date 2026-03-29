@@ -61,10 +61,7 @@ function buildToolCallStyleSection(): string[] {
   ];
 }
 
-function buildSkillsSection(params: {
-  skillsPrompt?: string;
-  readToolName: string;
-}): string[] {
+function buildSkillsSection(params: { skillsPrompt?: string; readToolName: string }): string[] {
   const trimmed = params.skillsPrompt?.trim();
   if (!trimmed) return [];
 
@@ -100,12 +97,7 @@ function buildAgentsMdSection(agentsMd?: string): string[] {
   const trimmed = agentsMd?.trim();
   if (!trimmed) return [];
 
-  return [
-    "",
-    "## Agents.md",
-    "",
-    trimmed,
-  ];
+  return ["", "## Agents.md", "", trimmed];
 }
 
 // ─── 公共 API ─────────────────────────────────────────────────

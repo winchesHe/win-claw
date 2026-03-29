@@ -23,10 +23,11 @@ import {
 } from "@winches/core";
 import type { PluginConfig } from "@winches/core";
 import pino from "pino";
+import { createFileLogger } from "./logger.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const logger = pino({ name: "@winches/gateway" });
+let logger = pino({ name: "@winches/gateway" });
 
 /** 向上查找文件，最多 6 层 */
 function findFile(filename: string): string | null {
@@ -109,6 +110,7 @@ async function main() {
   loadDotEnv();
 
   const configPath = findFile("config.yaml") ?? resolve(process.cwd(), "config.yaml");
+  const rootDir = dirname(configPath);
 
   let config;
   try {
@@ -121,6 +123,8 @@ async function main() {
     }
     process.exit(1);
   }
+
+  logger = createFileLogger("@winches/gateway", rootDir, config.logging.level);
 
   const aiClient = createAIClient({
     provider: config.llm.provider,

@@ -13,8 +13,25 @@
     "dist/"
   ],
   "scripts": {
-    "build": "tsdown",
-    "dev": "tsdown --watch",
-    "clean": "rm -rf dist"
+    "build": "tsdown && vite build",
+    "dev": "build:client && tsdown --watch",
+    "clean": "rm -rf dist",
+    "start": "build:client && tsx src/bin.ts",
+    "build:client": "vite build"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.1",
+    "@winches/storage": "workspace:*",
+    "hono": "^4.7.10",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.6.2",
+    "yaml": "^2.7.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.5.2",
+    "vite": "^6.3.5"
   }
 }

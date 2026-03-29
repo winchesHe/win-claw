@@ -25,4 +25,4 @@ storage:
 
 # 日志级别配置
 logging:
-  level: info # debug | info | warn | error
+  level: debug # debug | info | warn | error

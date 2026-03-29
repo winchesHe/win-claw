@@ -13,6 +13,7 @@ export interface AgentConfig {
   maxIterations?: number;
   skillRegistry?: ISkillRegistry;
   mcpClientManager?: IMcpClientManager;
+  logger?: import("pino").Logger;
 }
 
 /** Agent 内部使用的已解析配置（必填字段已填充默认值） */
