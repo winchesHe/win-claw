@@ -14,9 +14,9 @@
   ],
   "scripts": {
     "build": "tsdown && vite build",
-    "dev": "build:client && tsdown --watch",
+    "dev": "pnpm build:client && tsdown --watch",
     "clean": "rm -rf dist",
-    "start": "build:client && tsx src/bin.ts",
+    "start": "pnpm build:client && tsx src/bin.ts",
     "build:client": "vite build"
   },
   "dependencies": {
