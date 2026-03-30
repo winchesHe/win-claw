@@ -55,3 +55,94 @@ export interface SystemStatus {
   pendingTaskCount: number;
   recentToolLogs: ToolExecutionLog[];
 }
+
+export type PluginScope = "project" | "global" | "yaml";
+export type PluginIdeType = "cursor" | "claude" | "codex" | "kiro" | "config-yaml";
+
+export interface SkillSourceView {
+  name: string;
+  description: string;
+  sourceLabel: string;
+  scope: PluginScope;
+  ideType: PluginIdeType;
+  path?: string;
+  contentMode: "inline" | "file";
+  editable: boolean;
+  active: boolean;
+  shadowedBy?: string;
+  issues: string[];
+}
+
+export interface SkillListItemView {
+  name: string;
+  description: string;
+  activeSource: SkillSourceView;
+  sourceCount: number;
+  shadowedCount: number;
+}
+
+export interface SkillDetailView {
+  item: SkillListItemView;
+  sources: SkillSourceView[];
+  preview?: string;
+}
+
+export interface McpSourceView {
+  name: string;
+  transport: "stdio" | "sse";
+  command?: string;
+  args?: string[];
+  url?: string;
+  envKeys: string[];
+  env?: Record<string, string>;
+  sourceLabel: string;
+  scope: PluginScope;
+  ideType: PluginIdeType;
+  editable: boolean;
+  active: boolean;
+  shadowedBy?: string;
+  issues: string[];
+}
+
+export interface McpListItemView {
+  name: string;
+  activeSource: McpSourceView;
+  status: "connected" | "failed" | "disconnected" | "unknown";
+  toolCount: number | null;
+  error?: string;
+  sourceCount: number;
+  shadowedCount: number;
+}
+
+export interface McpDetailView {
+  item: McpListItemView;
+  sources: McpSourceView[];
+}
+
+export interface WritablePluginTarget {
+  kind: "yaml-skill" | "ide-skill-file" | "yaml-mcp" | "ide-mcp-json";
+  label: string;
+  path: string;
+  ideType?: Exclude<PluginIdeType, "config-yaml">;
+}
+
+export interface PluginSourceSummaryView {
+  sourceLabel: string;
+  scope: PluginScope;
+  ideType: PluginIdeType;
+  path: string;
+}
+
+export interface PluginSourcesResponse {
+  discoveredSources: PluginSourceSummaryView[];
+  writableTargets: WritablePluginTarget[];
+}
+
+export interface McpConnectionTestResult {
+  name: string;
+  status: "connected" | "failed";
+  toolCount: number;
+  stage: "validation" | "connection" | "discovery";
+  message: string;
+  error?: string;
+}

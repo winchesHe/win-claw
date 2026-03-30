@@ -147,11 +147,12 @@ describe("conversationLoop — slash skill", () => {
 
     const systemMessage = vi
       .mocked(provider.chatStream)
-      .mock.calls[0]?.[0]
-      ?.find((message) => message.role === "system")?.content;
+      .mock.calls[0]?.[0]?.find((message) => message.role === "system")?.content;
 
     expect(systemMessage).toContain("The user explicitly selected the skill `create-agentsmd`.");
-    expect(systemMessage).toContain("Read the skill document at `/tmp/skill/SKILL.md` with `file-read`");
+    expect(systemMessage).toContain(
+      "Read the skill document at `/tmp/skill/SKILL.md` with `file-read`",
+    );
     expect(systemMessage).not.toContain("You are helping create AGENTS.md.");
   });
 

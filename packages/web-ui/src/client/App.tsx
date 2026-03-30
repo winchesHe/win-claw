@@ -7,6 +7,8 @@ import Logs from "./pages/Logs.js";
 import Tasks from "./pages/Tasks.js";
 import Memories from "./pages/Memories.js";
 import Config from "./pages/Config.js";
+import Skills from "./pages/Skills.js";
+import Mcp from "./pages/Mcp.js";
 
 export default function App() {
   return (
@@ -19,6 +21,8 @@ export default function App() {
           <Route path="/logs" element={<Logs />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/memories" element={<Memories />} />
+          <Route path="/skills" element={<Skills />} />
+          <Route path="/mcp" element={<Mcp />} />
           <Route path="/config" element={<Config />} />
         </Route>
       </Routes>

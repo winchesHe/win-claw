@@ -66,7 +66,7 @@ function loadDotEnv(): void {
 
 function createNullStorage(): StorageService {
   return {
-    saveMessage: async () => { },
+    saveMessage: async () => {},
     getHistory: async () => [],
     searchHistory: async () => [],
     listSessions: async () => [],
@@ -94,14 +94,14 @@ function createNullStorage(): StorageService {
       working: { count: 0, activeCount: 0 },
       episodic: { totalMessages: 0, vectorizedCount: 0 },
     }),
-    saveScheduledTask: async () => { },
+    saveScheduledTask: async () => {},
     getPendingTasks: async () => [],
-    updateTaskStatus: async () => { },
-    logToolExecution: async () => { },
+    updateTaskStatus: async () => {},
+    logToolExecution: async () => {},
     getToolExecutionLogs: async () => [],
     queueApproval: async () => "",
     getApproval: async () => "pending" as const,
-    updateApprovalStatus: async () => { },
+    updateApprovalStatus: async () => {},
   };
 }
 

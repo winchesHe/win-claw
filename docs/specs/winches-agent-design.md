@@ -391,14 +391,14 @@ interface SystemPromptParams {
 
 System prompt 由以下区块按顺序拼接：
 
-| 序号 | 区块                 | 条件               | 内容                                                              |
-| ---- | -------------------- | ------------------ | ----------------------------------------------------------------- |
-| 1    | Identity             | 始终               | 身份声明、用户主目录                                              |
-| 2    | `## Tooling`         | 有工具时           | 按 dangerLevel 分组列出所有注册工具（safe → confirm → dangerous） |
-| 3    | `## Tool Call Style` | 始终               | 工具调用行为规范（先解释再调用、失败不重试、禁止长时进程等）      |
+| 序号 | 区块                 | 条件               | 内容                                                                |
+| ---- | -------------------- | ------------------ | ------------------------------------------------------------------- |
+| 1    | Identity             | 始终               | 身份声明、用户主目录                                                |
+| 2    | `## Tooling`         | 有工具时           | 按 dangerLevel 分组列出所有注册工具（safe → confirm → dangerous）   |
+| 3    | `## Tool Call Style` | 始终               | 工具调用行为规范（先解释再调用、失败不重试、禁止长时进程等）        |
 | 4    | `## Skills`          | 有 skillsPrompt 时 | Skill 选择协议 + `<available_skills>` 索引，指导 Agent 自行读取文档 |
-| 5    | `## Workspace`       | 始终               | 工作目录路径，可选的 guidance 和 notes                            |
-| 6    | `## Agents.md`       | 有内容时           | 项目级指导文档原文                                                |
+| 5    | `## Workspace`       | 始终               | 工作目录路径，可选的 guidance 和 notes                              |
+| 6    | `## Agents.md`       | 有内容时           | 项目级指导文档原文                                                  |
 
 > **Tooling 区块**：工具名称通过 `sanitizeToolName()` 转换为 LLM 兼容格式（`file.read` → `file-read`），并附带 description。按权限级别分组展示，让 LLM 了解哪些工具可直接执行、哪些需要审批。
 

@@ -22,9 +22,7 @@ describe("SkillRegistry", () => {
       prompt: "Use cwd={{cwd}} and input={{input}}.",
     });
     expect(skill?.documentPath).toBeUndefined();
-    expect(registry.renderContent("create-agentsmd", { input: "draft" })).toContain(
-      "input=draft",
-    );
+    expect(registry.renderContent("create-agentsmd", { input: "draft" })).toContain("input=draft");
     expect(registry.renderPrompt("create-agentsmd", { input: "draft" })).toBe(
       registry.renderContent("create-agentsmd", { input: "draft" }),
     );

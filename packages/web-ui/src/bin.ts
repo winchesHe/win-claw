@@ -87,9 +87,7 @@ function main(): void {
   try {
     storage = initStorage(configPath, rootDir);
   } catch (err) {
-    console.error(
-      `存储服务初始化失败：${err instanceof Error ? err.message : String(err)}`,
-    );
+    console.error(`存储服务初始化失败：${err instanceof Error ? err.message : String(err)}`);
     process.exit(1);
   }
 

@@ -76,9 +76,7 @@ describe("createApp 静态资源目录选择", () => {
   });
 
   it("dist/client 不存在时回退到源码目录", async () => {
-    const createApp = await loadCreateApp(
-      (path) => path === "/repo/packages/web-ui/src/client",
-    );
+    const createApp = await loadCreateApp((path) => path === "/repo/packages/web-ui/src/client");
 
     createApp({
       storage: makeMockStorage(),

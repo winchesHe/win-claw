@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.14.1",
+    "@winches/core": "workspace:*",
     "@winches/storage": "workspace:*",
     "hono": "^4.7.10",
     "react": "^19.0.0",

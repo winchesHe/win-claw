@@ -215,6 +215,9 @@ importers:
       '@hono/node-server':
         specifier: ^1.14.1
         version: 1.19.11(hono@4.12.9)
+      '@winches/core':
+        specifier: workspace:*
+        version: link:../core
       '@winches/storage':
         specifier: workspace:*
         version: link:../storage

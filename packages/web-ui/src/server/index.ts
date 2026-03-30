@@ -6,6 +6,9 @@ import type { StorageService } from "@winches/storage";
 import { ConfigService } from "./services/config-service.js";
 import { EnvService } from "./services/env-service.js";
 import { LogService } from "./services/log-service.js";
+import { PluginDiscoveryService } from "./services/plugin-discovery-service.js";
+import { PluginConfigWriteService } from "./services/plugin-config-write-service.js";
+import { McpTestService } from "./services/mcp-test-service.js";
 import { createStatusRoutes } from "./routes/status.js";
 import { createConfigRoutes } from "./routes/config.js";
 import { createSessionsRoutes } from "./routes/sessions.js";
@@ -13,6 +16,7 @@ import { createToolLogsRoutes } from "./routes/tool-logs.js";
 import { createLogsRoutes } from "./routes/logs.js";
 import { createTasksRoutes } from "./routes/tasks.js";
 import { createMemoriesRoutes } from "./routes/memories.js";
+import { createPluginRoutes } from "./routes/plugins.js";
 
 export interface CreateAppOptions {
   storage: StorageService;
@@ -25,11 +29,11 @@ export function createApp(options: CreateAppOptions): Hono {
   const app = new Hono();
 
   const configService = new ConfigService(resolve(rootDir, "config.yaml"));
-  const envService = new EnvService(
-    resolve(rootDir, ".env"),
-    resolve(rootDir, ".env.example"),
-  );
+  const envService = new EnvService(resolve(rootDir, ".env"), resolve(rootDir, ".env.example"));
   const logService = new LogService(resolve(rootDir, "data/agent.log"));
+  const pluginDiscoveryService = new PluginDiscoveryService(rootDir);
+  const pluginConfigWriteService = new PluginConfigWriteService(rootDir);
+  const mcpTestService = new McpTestService();
 
   // Register API routes
   app.route("", createStatusRoutes(storage));
@@ -39,6 +43,10 @@ export function createApp(options: CreateAppOptions): Hono {
   app.route("", createLogsRoutes(logService));
   app.route("", createTasksRoutes(storage));
   app.route("", createMemoriesRoutes(storage));
+  app.route(
+    "",
+    createPluginRoutes(pluginDiscoveryService, pluginConfigWriteService, mcpTestService),
+  );
 
   // Global error handler
   app.onError((err, c) => {

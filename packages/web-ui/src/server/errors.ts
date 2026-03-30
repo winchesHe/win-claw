@@ -26,3 +26,15 @@ export class UnknownEnvKeyError extends WebUIError {
     this.invalidKeys = invalidKeys;
   }
 }
+
+export class PluginValidationError extends WebUIError {
+  public readonly field: string;
+  public readonly reason: string;
+
+  constructor(field: string, reason: string) {
+    super(`Plugin validation failed for "${field}": ${reason}`);
+    this.name = "PluginValidationError";
+    this.field = field;
+    this.reason = reason;
+  }
+}

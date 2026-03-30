@@ -7,6 +7,8 @@ const navItems = [
   { to: "/logs", label: "日志查看" },
   { to: "/tasks", label: "定时任务" },
   { to: "/memories", label: "记忆管理" },
+  { to: "/skills", label: "Skills" },
+  { to: "/mcp", label: "MCP" },
   { to: "/config", label: "配置管理" },
 ];
 

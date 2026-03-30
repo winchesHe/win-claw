@@ -115,7 +115,12 @@ export async function* conversationLoop(ctx: LoopContext): AsyncGenerator<AgentE
 
     // a. 带指数退避重试的 chatStream 调用（最多 3 次，间隔 1s/2s/4s）
     logger.debug(
-      { sessionId, iteration: iterations, messageCount: loopMessages.length, messages: loopMessages },
+      {
+        sessionId,
+        iteration: iterations,
+        messageCount: loopMessages.length,
+        messages: loopMessages,
+      },
       "prompt_snapshot: before chatStream",
     );
     let stream: AsyncIterable<ChatChunk> | undefined;
