@@ -6,8 +6,28 @@ import type { IToolRegistry, ISkillRegistry, IMcpClientManager } from "@winches/
 import type { GatewayConfig, PendingApproval } from "./types.js";
 import { SessionManager } from "./session.js";
 import { handleMessage } from "./handlers/message.js";
-import { handleStart, handleNew, handleStatus } from "./handlers/command.js";
+import {
+  handleStart,
+  handleNew,
+  handleStatus,
+  handleSession,
+  handleSessions,
+  handleSwitch,
+} from "./handlers/command.js";
 import { createApprovalHandler, handleCallbackQuery } from "./handlers/callback.js";
+
+const TELEGRAM_NATIVE_COMMANDS = new Set(["start", "new", "status", "session", "sessions", "switch"]);
+
+export function shouldHandleAsTelegramCommand(text: string): boolean {
+  if (!text.startsWith("/")) return false;
+
+  const body = text.slice(1).trim();
+  if (body.length === 0) return false;
+
+  const firstToken = body.split(/\s+/, 1)[0] ?? "";
+  const command = firstToken.split("@", 1)[0] ?? "";
+  return TELEGRAM_NATIVE_COMMANDS.has(command);
+}
 
 export class GatewayBot {
   private bot: Bot;
@@ -41,10 +61,13 @@ export class GatewayBot {
     this.bot.command("start", (ctx) => handleStart(ctx));
     this.bot.command("new", (ctx) => handleNew(ctx, this.sessionManager, ctx.chat.id));
     this.bot.command("status", (ctx) => handleStatus(ctx, this.sessionManager, ctx.chat.id));
+    this.bot.command("session", (ctx) => handleSession(ctx, this.sessionManager, ctx.chat.id));
+    this.bot.command("sessions", (ctx) => handleSessions(ctx, this.sessionManager));
+    this.bot.command("switch", (ctx) => handleSwitch(ctx, this.sessionManager, ctx.chat.id));
 
     // Register text message handler (non-command text messages)
     this.bot.on("message:text", async (ctx) => {
-      if (ctx.message.text.startsWith("/")) return; // commands handled above
+      if (shouldHandleAsTelegramCommand(ctx.message.text)) return;
       const session = this.sessionManager.getOrCreate(ctx.chat.id);
       // Do NOT await — let grammy continue processing other updates (e.g. callback_query for approvals)
       handleMessage(ctx, session, this.pendingApprovals, this.config, createApprovalHandler).catch(

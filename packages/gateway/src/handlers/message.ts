@@ -4,6 +4,7 @@ import type { GatewayConfig, ChatSession, PendingApproval } from "../types.js";
 import type { ApprovalRequest } from "@winches/agent";
 import type { ToolResult } from "@winches/core";
 import { ThrottledBuffer } from "../throttle.js";
+import { splitTelegramMessage, TELEGRAM_MAX_TEXT_LENGTH } from "../telegram-text.js";
 
 const logger = pino({ name: "@winches/gateway/message" });
 
@@ -78,10 +79,14 @@ export async function handleMessage(
   // 3. Send placeholder message
   const placeholderMsg = await ctx.reply("思考中…");
   session.activeMessageId = placeholderMsg.message_id;
+  let finalContent = "";
 
   // 4. Create ThrottledBuffer
   const editFn = async (content: string): Promise<void> => {
-    await ctx.api.editMessageText(ctx.chat!.id, session.activeMessageId!, content);
+    const preview = content.length > TELEGRAM_MAX_TEXT_LENGTH
+      ? splitTelegramMessage(content, TELEGRAM_MAX_TEXT_LENGTH)[0]
+      : content;
+    await ctx.api.editMessageText(ctx.chat!.id, session.activeMessageId!, preview);
   };
   const buffer = new ThrottledBuffer(editFn);
   buffer.start();
@@ -100,6 +105,7 @@ export async function handleMessage(
       logger.info({ eventType: event.type }, "[message] received agent event");
       switch (event.type) {
         case "text":
+          finalContent += event.content;
           buffer.append(event.content);
           break;
         case "tool_call":
@@ -127,6 +133,20 @@ export async function handleMessage(
     logger.error({ err: errMsg }, "[message] error in agent event stream");
     await ctx.reply(`❌ 发生错误：${errMsg}`).catch(() => {});
   } finally {
+    if (session.activeMessageId != null && finalContent.trim().length > 0) {
+      const chunks = splitTelegramMessage(finalContent, TELEGRAM_MAX_TEXT_LENGTH);
+      try {
+        await ctx.api.editMessageText(ctx.chat!.id, session.activeMessageId, chunks[0]!);
+        for (const chunk of chunks.slice(1)) {
+          await ctx.reply(chunk);
+        }
+      } catch (err) {
+        logger.warn({ err }, "[message] final edit failed, sending fallback reply");
+        for (const chunk of chunks) {
+          await ctx.reply(chunk).catch(() => {});
+        }
+      }
+    }
     session.agent.onApprovalNeeded = undefined;
     session.activeMessageId = undefined;
   }

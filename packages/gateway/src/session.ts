@@ -30,12 +30,26 @@ export class SessionManager {
     return session;
   }
 
+  async listSessions(limit: number = 20) {
+    return this.storage.listSessions(limit);
+  }
+
+  async switchSession(chatId: number, sessionId: string): Promise<boolean> {
+    const history = await this.storage.getHistory(sessionId, 1);
+    if (history.length === 0) {
+      return false;
+    }
+
+    const session = this.createSession(chatId, sessionId);
+    this.sessions.set(chatId, session);
+    return true;
+  }
+
   all(): ChatSession[] {
     return Array.from(this.sessions.values());
   }
 
-  private createSession(chatId: number): ChatSession {
-    const sessionId = `telegram-${chatId}-${Date.now()}`;
+  private createSession(chatId: number, sessionId: string = `telegram-${chatId}-${Date.now()}`): ChatSession {
     const agent = new Agent({
       provider: this.provider,
       storage: this.storage,
