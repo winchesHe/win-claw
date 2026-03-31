@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  handleSession,
-  handleSessions,
-  handleSwitch,
-} from "../handlers/command.js";
+import { handleSession, handleSessions, handleSwitch } from "../handlers/command.js";
 
 describe("gateway session commands", () => {
   it("/session 返回当前会话 ID", async () => {

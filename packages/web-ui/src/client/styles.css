@@ -516,6 +516,45 @@ body {
   margin-top: 10px;
 }
 
+.plugin-test-tools {
+  margin-top: 12px;
+}
+
+.plugin-test-tools-title {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.plugin-test-tools-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.plugin-test-tool-item {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.plugin-test-tool-name {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.plugin-test-tool-desc {
+  margin-top: 4px;
+  color: #475569;
+}
+
+.plugin-test-tool-schema {
+  margin-top: 8px;
+  max-height: 220px;
+}
+
 .plugin-toolbar {
   display: flex;
   gap: 10px;

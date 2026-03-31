@@ -40,6 +40,11 @@ interface McpConnectionTestResult {
   stage: "validation" | "connection" | "discovery";
   message: string;
   error?: string;
+  tools?: Array<{
+    name: string;
+    description?: string;
+    inputSchema?: Record<string, unknown>;
+  }>;
 }
 
 const EMPTY_FORM = {
@@ -388,6 +393,26 @@ export default function Mcp() {
                   <div className="plugin-test-result-line">阶段：{testResult.stage}</div>
                   <div className="plugin-test-result-line">摘要：{testResult.message}</div>
                   <div className="plugin-test-result-line">工具数：{testResult.toolCount}</div>
+                  {testResult.tools && testResult.tools.length > 0 && (
+                    <div className="plugin-test-tools">
+                      <div className="plugin-test-tools-title">Discovered Tools</div>
+                      <ul className="plugin-test-tools-list">
+                        {testResult.tools.map((tool) => (
+                          <li key={tool.name} className="plugin-test-tool-item">
+                            <div className="plugin-test-tool-name">{tool.name}</div>
+                            <div className="plugin-test-tool-desc">
+                              {tool.description || "No description provided"}
+                            </div>
+                            {tool.inputSchema && (
+                              <pre className="plugin-preview plugin-test-tool-schema">
+                                {JSON.stringify(tool.inputSchema, null, 2)}
+                              </pre>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   {testResult.error && (
                     <pre className="plugin-preview plugin-test-error">{testResult.error}</pre>
                   )}

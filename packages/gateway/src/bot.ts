@@ -16,7 +16,14 @@ import {
 } from "./handlers/command.js";
 import { createApprovalHandler, handleCallbackQuery } from "./handlers/callback.js";
 
-const TELEGRAM_NATIVE_COMMANDS = new Set(["start", "new", "status", "session", "sessions", "switch"]);
+const TELEGRAM_NATIVE_COMMANDS = new Set([
+  "start",
+  "new",
+  "status",
+  "session",
+  "sessions",
+  "switch",
+]);
 
 export function shouldHandleAsTelegramCommand(text: string): boolean {
   if (!text.startsWith("/")) return false;

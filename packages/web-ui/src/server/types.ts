@@ -145,4 +145,9 @@ export interface McpConnectionTestResult {
   stage: "validation" | "connection" | "discovery";
   message: string;
   error?: string;
+  tools?: Array<{
+    name: string;
+    description?: string;
+    inputSchema?: Record<string, unknown>;
+  }>;
 }

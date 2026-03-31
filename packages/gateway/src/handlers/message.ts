@@ -83,9 +83,10 @@ export async function handleMessage(
 
   // 4. Create ThrottledBuffer
   const editFn = async (content: string): Promise<void> => {
-    const preview = content.length > TELEGRAM_MAX_TEXT_LENGTH
-      ? splitTelegramMessage(content, TELEGRAM_MAX_TEXT_LENGTH)[0]
-      : content;
+    const preview =
+      content.length > TELEGRAM_MAX_TEXT_LENGTH
+        ? splitTelegramMessage(content, TELEGRAM_MAX_TEXT_LENGTH)[0]
+        : content;
     await ctx.api.editMessageText(ctx.chat!.id, session.activeMessageId!, preview);
   };
   const buffer = new ThrottledBuffer(editFn);

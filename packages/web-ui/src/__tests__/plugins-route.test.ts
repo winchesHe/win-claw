@@ -190,6 +190,25 @@ function makeMockMcpTestService(overrides: Partial<McpTestService> = {}): McpTes
       name: "filesystem",
       status: "connected",
       toolCount: 3,
+      stage: "discovery",
+      message: "Connected successfully and discovered 3 tools",
+      tools: [
+        {
+          name: "read_file",
+          description: "Read a file from disk",
+          inputSchema: {
+            type: "object",
+            properties: {
+              path: { type: "string" },
+            },
+            required: ["path"],
+          },
+        },
+        {
+          name: "write_file",
+          description: "Write content to a file",
+        },
+      ],
     }),
     ...overrides,
   } as unknown as McpTestService;
@@ -355,6 +374,23 @@ describe("plugins 路由", () => {
     const body = await res.json();
     expect(body.status).toBe("connected");
     expect(body.toolCount).toBe(3);
+    expect(body.tools).toEqual([
+      {
+        name: "read_file",
+        description: "Read a file from disk",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: { type: "string" },
+          },
+          required: ["path"],
+        },
+      },
+      {
+        name: "write_file",
+        description: "Write content to a file",
+      },
+    ]);
     expect(tester.testConnection).toHaveBeenCalled();
   });
 });

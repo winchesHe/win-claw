@@ -12,7 +12,8 @@ describe("shouldHandleAsTelegramCommand", () => {
   it("将 agent slash commands 继续交给 Agent 层处理", () => {
     expect(shouldHandleAsTelegramCommand("/skills")).toBe(false);
     expect(shouldHandleAsTelegramCommand("/mcp-status")).toBe(false);
-    expect(shouldHandleAsTelegramCommand("/systematic-debugging gateway 调用 skill 不生效"))
-      .toBe(false);
+    expect(shouldHandleAsTelegramCommand("/systematic-debugging gateway 调用 skill 不生效")).toBe(
+      false,
+    );
   });
 });

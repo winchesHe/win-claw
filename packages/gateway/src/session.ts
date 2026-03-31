@@ -49,7 +49,10 @@ export class SessionManager {
     return Array.from(this.sessions.values());
   }
 
-  private createSession(chatId: number, sessionId: string = `telegram-${chatId}-${Date.now()}`): ChatSession {
+  private createSession(
+    chatId: number,
+    sessionId: string = `telegram-${chatId}-${Date.now()}`,
+  ): ChatSession {
     const agent = new Agent({
       provider: this.provider,
       storage: this.storage,

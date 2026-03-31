@@ -45,6 +45,7 @@ export { SkillRegistry } from "./plugin/skill-registry.js";
 export { discoverPluginConfig } from "./plugin/config-discovery.js";
 export { validatePluginConfig } from "./plugin/config-validator.js";
 export { adaptMcpTools } from "./plugin/mcp-tool-adapter.js";
+export type { McpTool, McpToolResult } from "./plugin/mcp-tool-adapter.js";
 
 // Plugin — Errors
 export { PluginError, PluginConfigValidationError, McpConnectionError } from "./plugin/errors.js";

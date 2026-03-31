@@ -1,6 +1,9 @@
 export const TELEGRAM_MAX_TEXT_LENGTH = 4096;
 
-export function splitTelegramMessage(text: string, limit: number = TELEGRAM_MAX_TEXT_LENGTH): string[] {
+export function splitTelegramMessage(
+  text: string,
+  limit: number = TELEGRAM_MAX_TEXT_LENGTH,
+): string[] {
   if (text.length <= limit) return [text];
 
   const chunks: string[] = [];

@@ -14,6 +14,7 @@ interface ManagedClient {
   client: Client;
   transport: StdioClientTransport | SSEClientTransport;
   status: McpServerStatus;
+  tools: McpTool[];
 }
 
 export class McpClientManager {
@@ -41,6 +42,7 @@ export class McpClientManager {
             error: message,
             source: serverConfig.source,
           },
+          tools: [],
         });
       }
     }
@@ -108,13 +110,18 @@ export class McpClientManager {
       source: config.source,
     };
 
-    this.clients.set(config.name, { client, transport, status });
+    this.clients.set(config.name, { client, transport, status, tools: mcpTools });
     logger.info({ server: config.name, toolCount: adaptedTools.length }, "MCP server connected");
   }
 
   /** 获取所有 MCP Server 的状态 */
   getStatus(): McpServerStatus[] {
     return Array.from(this.clients.values()).map((c) => c.status);
+  }
+
+  /** 获取已发现的 MCP tools，用于调试与可视化展示 */
+  getDiscoveredTools(serverName: string): McpTool[] {
+    return this.clients.get(serverName)?.tools ?? [];
   }
 
   /** 关闭所有连接 */

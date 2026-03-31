@@ -96,5 +96,10 @@ export interface IMcpClientManager {
     registry: import("../types.js").IToolRegistry,
   ): Promise<void>;
   getStatus(): McpServerStatus[];
+  getDiscoveredTools(serverName: string): Array<{
+    name: string;
+    description?: string;
+    inputSchema?: Record<string, unknown>;
+  }>;
   disconnectAll(): Promise<void>;
 }
